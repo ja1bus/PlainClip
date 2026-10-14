@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- タスクトレイの NotifyIcon だけに使う（.NET の WindowsDesktop 共有フレームワークに含まれ、NuGet 依存ではない）。 -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- 低レベルフックの構造体をポインターで読むため。 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>PlainClip</RootNamespace>
+    <AssemblyName>PlainClip</AssemblyName>
+    <Version>2.0.0</Version>
+    <ApplicationIcon>Resources/icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WFAC010: WinForms 向けの「DPI 設定は manifest でなく API で」という助言。WPF は manifest の PerMonitorV2 を使うため抑止する。 -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+
+    <!-- 配布は Framework-dependent。対象 PC の .NET 8 Desktop Runtime を使い、.NET は内包しない。 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <!-- 初回の履歴表示・貼り付けの JIT 待ちを減らす。 -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- 表示言語は英語（既定）と日本語だけ。日本語の文字列は ja\PlainClip.Core.resources.dll（V2.0.0）。 -->
+    <SatelliteResourceLanguages>en;ja</SatelliteResourceLanguages>
+
+    <!-- Core / Tests は別 csproj。既定の Compile 対象から除外する。 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Core/**;Tests/**;tools/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <!--
+    Microsoft Store 用の MSIX（V2.0.0〜。PROJECT.md「Microsoft Store（MSIX）」）。installer/msix/build-msix.ps1 が -p:PlainClipMsix=true で publish する。
+    - 自動起動に StartupTask（WinRT）を使うため、TargetFramework に Windows の版を付けて定数 MSIX を定義する。
+    - Store から入れた PC に .NET 8 Desktop Runtime があるとは限らないため、MSIX の中身だけは .NET を内包する（Self-contained・複数ファイル）。
+      自分用の Framework-dependent 版（Inno Setup）はこの設定の影響を受けない。
+  -->
+  <PropertyGroup Condition="'$(PlainClipMsix)' == 'true'">
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <DefineConstants>$(DefineConstants);MSIX</DefineConstants>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PlainClipMsix)' == 'true'">
+    <!-- Windows API の型の定義（StartupTask だけに使う）。ReadyToRun にすると大きくなるため除外する。 -->
+    <PublishReadyToRunExclude Include="Microsoft.Windows.SDK.NET.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- WPF と WinForms の同名型（Application・MessageBox など）の衝突を避けるため、WinForms 側の暗黙 using を外す。 -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <!--
+    ライセンス表記（V2.0.0。PROJECT.md「ライセンス表記」）。MIT License の全文と第三者のソフトウェアの表記を、配布物（MSIX・フォルダー一式）の
+    exe と同じフォルダーへ入れる。scripts では public-repo/ にある原本、公開リポジトリではルートにある同名のファイルを使う。
+  -->
+  <ItemGroup Condition="Exists('public-repo/LICENSE')">
+    <None Update="public-repo/LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="public-repo/THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('public-repo/LICENSE') And Exists('LICENSE')">
+    <None Update="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Core/PlainClip.Core.csproj" />
+  </ItemGroup>
+</Project>

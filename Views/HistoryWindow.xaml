@@ -1,0 +1,119 @@
+<Window x:Class="PlainClip.Views.HistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:PlainClip.Core.Localization;assembly=PlainClip.Core"
+        Title="PlainClip"
+        Width="460" SizeToContent="Height"
+        WindowStyle="None" ResizeMode="NoResize"
+        ShowInTaskbar="False" Topmost="True" ShowActivated="True"
+        Left="-32000" Top="-32000"
+        Background="{DynamicResource WindowBrush}" BorderBrush="{DynamicResource FrameBrush}" BorderThickness="1"
+        FontSize="13"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <!-- 色はハイコントラストのときにシステムの色へ差し替える（HistoryWindow.ApplyColors）。 -->
+        <SolidColorBrush x:Key="WindowBrush" Color="#FFFFFFFF" />
+        <SolidColorBrush x:Key="TextBrush" Color="#FF1A1A1A" />
+        <SolidColorBrush x:Key="FrameBrush" Color="#FF8A8A8A" />
+        <SolidColorBrush x:Key="HeaderBrush" Color="#FFF3F3F3" />
+        <SolidColorBrush x:Key="LineBrush" Color="#FFDDDDDD" />
+        <SolidColorBrush x:Key="SelectedBrush" Color="#FFCCE4F7" />
+        <SolidColorBrush x:Key="SelectedTextBrush" Color="#FF1A1A1A" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#FFEFF5FB" />
+        <SolidColorBrush x:Key="SubtleText" Color="#FF5F5F5F" />
+        <SolidColorBrush x:Key="MarkBrush" Color="#FF0F6CBD" />
+        <SolidColorBrush x:Key="CopyOnlyBrush" Color="#FFFFF8E1" />
+        <SolidColorBrush x:Key="CopyOnlyText" Color="#FF6B5000" />
+
+        <Style x:Key="RowStyle" TargetType="ListBoxItem">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="8,5" CornerRadius="3" Margin="4,1">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SelectedTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- 見出し（ドラッグ移動などはしない。小さく邪魔にならないことを優先） -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource HeaderBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="10,5">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" x:Name="HintText" Foreground="{DynamicResource SubtleText}" FontSize="{Binding SmallFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="PlainClip" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" />
+            </DockPanel>
+        </Border>
+
+        <!-- 貼り付け先が無いとき（タスクトレイから開いた等）の案内 -->
+        <Border DockPanel.Dock="Bottom" x:Name="CopyOnlyBar" Visibility="Collapsed" Background="{DynamicResource CopyOnlyBrush}" Padding="10,4"
+                BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
+            <TextBlock FontSize="{Binding SmallFontSize, RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource CopyOnlyText}" TextWrapping="Wrap"
+                       Text="{x:Static l:Strings.HistoryCopyOnlyBar}" />
+        </Border>
+
+        <!-- 選んだ項目が複数行・長文のときの内容確認（キーボードで選んでも見える。V2.0.0） -->
+        <Border DockPanel.Dock="Bottom" x:Name="PreviewPanel" Visibility="Collapsed" Padding="10,6"
+                BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
+            <TextBlock x:Name="PreviewBody" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" MaxHeight="150"
+                       TextTrimming="CharacterEllipsis" FontFamily="Consolas, Yu Gothic UI, Segoe UI"
+                       AutomationProperties.Name="{x:Static l:Strings.HistoryPreviewName}" />
+        </Border>
+
+        <Grid>
+            <TextBlock x:Name="EmptyText" Visibility="Collapsed" Margin="14,16" Foreground="{DynamicResource SubtleText}"
+                       Text="{x:Static l:Strings.HistoryEmpty}" TextWrapping="Wrap" />
+            <!-- 最大 50 件なので仮想化しない（表示直後から全行がそろう） -->
+            <ListBox x:Name="List" Focusable="False" BorderThickness="0" Padding="0,3" MaxHeight="420"
+                     Background="{DynamicResource WindowBrush}"
+                     VirtualizingPanel.IsVirtualizing="False"
+                     ItemContainerStyle="{StaticResource RowStyle}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     AutomationProperties.Name="{x:Static l:Strings.HistoryListName}"
+                     SelectionChanged="List_SelectionChanged"
+                     PreviewMouseLeftButtonUp="List_PreviewMouseLeftButtonUp">
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem x:Name="MenuPaste" Header="{x:Static l:Strings.HistoryMenuPaste}" Click="MenuPaste_Click" InputGestureText="Enter" />
+                        <MenuItem x:Name="MenuCopy" Header="{x:Static l:Strings.HistoryMenuCopy}" Click="MenuCopy_Click" />
+                        <Separator />
+                        <MenuItem Header="{x:Static l:Strings.HistoryMenuDelete}" Click="MenuDelete_Click" InputGestureText="Del" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel ToolTip="{Binding ToolTipText}" ToolTipService.InitialShowDelay="700">
+                            <TextBlock DockPanel.Dock="Left" Width="22" Text="{Binding Number}" Foreground="{DynamicResource SubtleText}"
+                                       FontFamily="Consolas, Segoe UI" VerticalAlignment="Center" />
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding LineInfo}" Foreground="{DynamicResource SubtleText}"
+                                       FontSize="{Binding SmallFontSize, RelativeSource={RelativeSource AncestorType=Window}}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            <!-- 現在のクリップボードと同じ内容の印（V2.0.0。貼り付けても並べ替えないため、どれが今の内容かを示す） -->
+                            <TextBlock DockPanel.Dock="Right" Text="●" Foreground="{DynamicResource MarkBrush}" Margin="6,0,0,0"
+                                       FontSize="{Binding SmallFontSize, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center"
+                                       Visibility="{Binding MarkVisibility}" ToolTip="{x:Static l:Strings.HistoryCurrentMark}" />
+                            <TextBlock Text="{Binding Preview}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </DockPanel>
+</Window>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- UI・Win32 に依存しないロジック（履歴・テキスト正規化・ダブルタップ判定・ショートカット・設定）と、画面に表示する文字列。単体テストの対象。 -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PlainClip.Core</RootNamespace>
+    <!-- 既定の言語は英語（Strings.resx）。日本語は ja\PlainClip.Core.resources.dll（Strings.ja.resx）。 -->
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Visual Studio なしで（dotnet build だけで）型付きのアクセス用クラス PlainClip.Core.Localization.Strings を生成する。XAML の x:Static から使うため public。 -->
+    <EmbeddedResource Update="Localization\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>PlainClip.Core.Localization</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

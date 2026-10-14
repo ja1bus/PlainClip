@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 画面に表示する文字列（日本語。Windows の表示言語が日本語、または設定で日本語を選んだときに使う）。キーは Strings.resx と必ずそろえる。 -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppUnexpectedErrorFormat" xml:space="preserve">
+    <value>予期しないエラーが発生しました。
+{0}: {1}
+
+詳細: {2}</value>
+  </data>
+  <data name="AppWillExit" xml:space="preserve">
+    <value>PlainClip を終了します。</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>適用</value>
+  </data>
+  <data name="AutoStartDisabledByPolicy" xml:space="preserve">
+    <value>自動起動は組織のポリシーで管理されているため、ここでは変更できません。</value>
+  </data>
+  <data name="AutoStartDisabledByUser" xml:space="preserve">
+    <value>PlainClip の自動起動が Windows の設定（［アプリ］→［スタートアップ］）またはタスク マネージャーでオフになっています。そちらでオンにしてください。</value>
+  </data>
+  <data name="AutoStartFailedFormat" xml:space="preserve">
+    <value>自動起動の設定を変更できませんでした: {0}</value>
+  </data>
+  <data name="AutoStartNoPath" xml:space="preserve">
+    <value>実行ファイルの場所を取得できませんでした。</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="ClipboardListenFailed" xml:space="preserve">
+    <value>クリップボードの監視を開始できませんでした。詳細は error.log を確認してください。</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="DoubleTapTwiceFormat" xml:space="preserve">
+    <value>{0} を 2 回</value>
+  </data>
+  <data name="GuideCtrlV" xml:space="preserve">
+    <value>Windows の通常の貼り付け（書式付きのまま）。</value>
+  </data>
+  <data name="GuideHeading" xml:space="preserve">
+    <value>PlainClip はタスクトレイで動作しています</value>
+  </data>
+  <data name="GuideHistory" xml:space="preserve">
+    <value>履歴一覧を表示します。1～9、または ↑↓ と Enter で選んで貼り付けます。</value>
+  </data>
+  <data name="GuideIntro" xml:space="preserve">
+    <value>いつもどおりテキストをコピーしてください。PlainClip は書式なしで貼り付け、最近のテキストの履歴をメモリ上に少しだけ残します。</value>
+  </data>
+  <data name="GuideNote" xml:space="preserve">
+    <value>履歴はメモリ上だけに保持し、PlainClip を終了すると消えます。この画面は、トレイのアイコンを右クリックして「使い方」で再表示できます。</value>
+  </data>
+  <data name="GuideNumber" xml:space="preserve">
+    <value>その番号の履歴（1 = 最新）を、一覧を開かずに貼り付けます。</value>
+  </data>
+  <data name="GuideNumberOff" xml:space="preserve">
+    <value>使わない設定です（既定）。「設定」で有効にすると、一覧を開かずに番号で履歴を貼り付けられます。</value>
+  </data>
+  <data name="GuideNumberOffKey" xml:space="preserve">
+    <value>数字ショートカット</value>
+  </data>
+  <data name="GuideOpenSettings" xml:space="preserve">
+    <value>設定を開く</value>
+  </data>
+  <data name="GuidePaste" xml:space="preserve">
+    <value>今クリップボードにあるテキストを書式なしで貼り付けます。画像やファイルがコピーされているときは何も貼りません。</value>
+  </data>
+  <data name="GuidePasteDisabled" xml:space="preserve">
+    <value>無効になっています。「設定」でキーを選べます。</value>
+  </data>
+  <data name="GuidePasteDisabledKey" xml:space="preserve">
+    <value>書式なし貼り付け</value>
+  </data>
+  <data name="GuideTitle" xml:space="preserve">
+    <value>PlainClip の使い方</value>
+  </data>
+  <data name="GuideTrayKey" xml:space="preserve">
+    <value>トレイのアイコンをクリック</value>
+  </data>
+  <data name="GuideTrayOrShortcutFormat" xml:space="preserve">
+    <value>{0} またはトレイのアイコンをクリック</value>
+  </data>
+  <data name="HistoryCopyOnlyBar" xml:space="preserve">
+    <value>貼り付け先のウィンドウがないため、選んだ履歴はクリップボードへコピーします。</value>
+  </data>
+  <data name="HistoryCurrentMark" xml:space="preserve">
+    <value>現在のクリップボード</value>
+  </data>
+  <data name="HistoryEmpty" xml:space="preserve">
+    <value>履歴はありません。テキストをコピーすると、ここに表示されます。</value>
+  </data>
+  <data name="HistoryHintCopy" xml:space="preserve">
+    <value>Enter コピー ・ Del 削除 ・ Esc 閉じる</value>
+  </data>
+  <data name="HistoryHintEmpty" xml:space="preserve">
+    <value>Esc 閉じる</value>
+  </data>
+  <data name="HistoryHintPaste" xml:space="preserve">
+    <value>Enter 貼り付け ・ Del 削除 ・ Esc 閉じる</value>
+  </data>
+  <data name="HistoryLinesFormat" xml:space="preserve">
+    <value>{0}行</value>
+  </data>
+  <data name="HistoryListName" xml:space="preserve">
+    <value>クリップボードの履歴</value>
+  </data>
+  <data name="HistoryMenuCopy" xml:space="preserve">
+    <value>クリップボードへコピー</value>
+  </data>
+  <data name="HistoryMenuDelete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="HistoryMenuPaste" xml:space="preserve">
+    <value>貼り付け</value>
+  </data>
+  <data name="HistoryPreviewName" xml:space="preserve">
+    <value>選んだ履歴の内容</value>
+  </data>
+  <data name="HookFailedFormat" xml:space="preserve">
+    <value>キー入力の監視を開始できませんでした（エラー {0}）。キーを 2 回押す貼り付けは使えません。「設定」で通常ショートカットに切り替えてください。</value>
+  </data>
+  <data name="HotkeyDuplicateFormat" xml:space="preserve">
+    <value>このショートカット（{0}）は使用できません。PlainClip の別の機能と同じです</value>
+  </data>
+  <data name="HotkeyErrorFormat" xml:space="preserve">
+    <value>このショートカット（{0}）は使用できません（エラー {1}）</value>
+  </data>
+  <data name="HotkeyInUseFormat" xml:space="preserve">
+    <value>このショートカット（{0}）は使用できません。他のアプリまたは Windows が使用中です</value>
+  </data>
+  <data name="HotkeyRegisteredFormat" xml:space="preserve">
+    <value>{0} を登録しました</value>
+  </data>
+  <data name="HotkeySuspended" xml:space="preserve">
+    <value>入力中（一時的に解除しています）</value>
+  </data>
+  <data name="HotkeysFailedFormat" xml:space="preserve">
+    <value>ショートカット {0} は使用できません。「設定」で別のキーを選んでください。</value>
+  </data>
+  <data name="KeyLeftCtrl" xml:space="preserve">
+    <value>左Ctrl</value>
+  </data>
+  <data name="KeyLeftShift" xml:space="preserve">
+    <value>左Shift</value>
+  </data>
+  <data name="KeyRightCtrl" xml:space="preserve">
+    <value>右Ctrl</value>
+  </data>
+  <data name="KeyRightShift" xml:space="preserve">
+    <value>右Shift</value>
+  </data>
+  <data name="LanguageSystem" xml:space="preserve">
+    <value>Windows の表示言語に合わせる</value>
+  </data>
+  <data name="NoticeCopied" xml:space="preserve">
+    <value>書式なしでコピーしました。</value>
+  </data>
+  <data name="NoticeCopiedOnly" xml:space="preserve">
+    <value>書式なしのテキストをクリップボードに入れました。貼り付け先で Ctrl+V を押してください。</value>
+  </data>
+  <data name="NoticeElevated" xml:space="preserve">
+    <value>貼り付け先は管理者として実行中のため、自動で貼り付けできない場合があります。貼り付かない場合は Ctrl+V を押してください。</value>
+  </data>
+  <data name="NoticeEmpty" xml:space="preserve">
+    <value>クリップボードのテキストが空です。</value>
+  </data>
+  <data name="NoticeFailed" xml:space="preserve">
+    <value>クリップボードを使用できませんでした。もう一度お試しください。</value>
+  </data>
+  <data name="NoticeFiles" xml:space="preserve">
+    <value>貼り付けできるテキストがありません（ファイルがコピーされています）。</value>
+  </data>
+  <data name="NoticeNoHistoryFormat" xml:space="preserve">
+    <value>{0} 番の履歴はありません。</value>
+  </data>
+  <data name="NoticeNoText" xml:space="preserve">
+    <value>貼り付けできるテキストがありません（画像など、テキスト以外がコピーされています）。</value>
+  </data>
+  <data name="NoticeTooLong" xml:space="preserve">
+    <value>テキストが長すぎるため、書式なしにできません（100万文字まで）。</value>
+  </data>
+  <data name="NoticeUnavailable" xml:space="preserve">
+    <value>クリップボードを読み取れませんでした（他のアプリが使用中です）。</value>
+  </data>
+  <data name="NumberKeysFormat" xml:space="preserve">
+    <value>{0}+1～9</value>
+  </data>
+  <data name="Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="PreviewWhitespaceOnly" xml:space="preserve">
+    <value>(空白のみ)</value>
+  </data>
+  <data name="RestartFailed" xml:space="preserve">
+    <value>PlainClip を再起動できませんでした。終了してから起動し直してください。</value>
+  </data>
+  <data name="RestartPrompt" xml:space="preserve">
+    <value>表示言語は PlainClip の再起動後に反映されます。履歴は消えます。
+
+今すぐ再起動しますか？</value>
+  </data>
+  <data name="SettingsAutoStart" xml:space="preserve">
+    <value>Windows の起動時に PlainClip を起動する</value>
+  </data>
+  <data name="SettingsAvailableFormat" xml:space="preserve">
+    <value>✓ {0} は登録できます（他のアプリのグローバルショートカットとは重なっていません）</value>
+  </data>
+  <data name="SettingsCorruptFormat" xml:space="preserve">
+    <value>設定ファイルを読み込めなかったため、既定の設定で起動しました。
+{0}</value>
+  </data>
+  <data name="SettingsDetails" xml:space="preserve">
+    <value>詳しい説明</value>
+  </data>
+  <data name="SettingsDisabled" xml:space="preserve">
+    <value>無効</value>
+  </data>
+  <data name="SettingsDoubleTap" xml:space="preserve">
+    <value>キーを 2 回押す:</value>
+  </data>
+  <data name="SettingsDoubleTapKeyName" xml:space="preserve">
+    <value>2 回押すキー</value>
+  </data>
+  <data name="SettingsHistoryDisabled" xml:space="preserve">
+    <value>無効（タスクトレイのアイコンをクリックして表示）</value>
+  </data>
+  <data name="SettingsHistoryHeading" xml:space="preserve">
+    <value>履歴一覧を表示</value>
+  </data>
+  <data name="SettingsLanguage" xml:space="preserve">
+    <value>言語 (Language)</value>
+  </data>
+  <data name="SettingsLanguageNote" xml:space="preserve">
+    <value>変更は PlainClip の再起動後に反映されます。</value>
+  </data>
+  <data name="SettingsLeftCtrlWarning" xml:space="preserve">
+    <value>左Ctrl ×2 は PowerToys「マウスを探す」の既定と重なります。使っている場合は別のキーを選んでください。</value>
+  </data>
+  <data name="SettingsLicenseLink" xml:space="preserve">
+    <value>MIT License</value>
+  </data>
+  <data name="SettingsLicenseToolTip" xml:space="preserve">
+    <value>PlainClip は MIT License で公開しているオープンソースソフトウェアです。押すとライセンスの全文を表示します。</value>
+  </data>
+  <data name="SettingsLicenseUnreadableFormat" xml:space="preserve">
+    <value>ライセンスのファイルを読み込めませんでした。次のファイルを確認してください。
+{0}</value>
+  </data>
+  <data name="SettingsLinkOpenFailedFormat" xml:space="preserve">
+    <value>ブラウザーでページを開けませんでした。
+{0}
+
+URL: {1}</value>
+  </data>
+  <data name="SettingsMaxCount" xml:space="preserve">
+    <value>最大履歴件数</value>
+  </data>
+  <data name="SettingsMaxCountUnit" xml:space="preserve">
+    <value>件</value>
+  </data>
+  <data name="SettingsMemoryNote" xml:space="preserve">
+    <value>履歴はメモリ上だけに保持し、PlainClip を終了すると消えます（ディスクには保存しません）。</value>
+  </data>
+  <data name="SettingsMergeDuplicates" xml:space="preserve">
+    <value>重複する履歴をまとめる（同じ内容の再コピーは先頭へ移動）</value>
+  </data>
+  <data name="SettingsNoticesLink" xml:space="preserve">
+    <value>第三者のソフトウェア</value>
+  </data>
+  <data name="SettingsNoticesOpenFailedFormat" xml:space="preserve">
+    <value>第三者のソフトウェアの表記を開けませんでした。次のファイルを確認してください。
+{0}</value>
+  </data>
+  <data name="SettingsNoticesToolTip" xml:space="preserve">
+    <value>第三者のソフトウェア（.NET など）の表記をメモ帳で開きます。</value>
+  </data>
+  <data name="SettingsNumberConflictFormat" xml:space="preserve">
+    <value>× {0} は上で設定したショートカットと重なっています</value>
+  </data>
+  <data name="SettingsNumberHeading" xml:space="preserve">
+    <value>数字ショートカット（番号で履歴を貼り付け）</value>
+  </data>
+  <data name="SettingsNumberInUseFormat" xml:space="preserve">
+    <value>× 使用できません: {0}（他のアプリまたは Windows が使用中）。別の修飾キーを選んでください</value>
+  </data>
+  <data name="SettingsNumberNone" xml:space="preserve">
+    <value>使わない</value>
+  </data>
+  <data name="SettingsNumberNote" xml:space="preserve">
+    <value>番号は履歴一覧の番号と同じです（1 = 最新）。使っている間、選んだキーは他のアプリでは使えなくなります。Ctrl+Alt は、欧州などのキーボード配列では AltGr として文字の入力に使われます。</value>
+  </data>
+  <data name="SettingsOtherHeading" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="SettingsPasteHeading" xml:space="preserve">
+    <value>クリップボードを書式なしで貼り付け</value>
+  </data>
+  <data name="SettingsPasteNote" xml:space="preserve">
+    <value>今クリップボードにあるテキストを貼り付けます。画像やファイルをコピーしているときは何も貼りません。</value>
+  </data>
+  <data name="SettingsPressKey" xml:space="preserve">
+    <value>入力欄をクリックして、割り当てるキーを押してください</value>
+  </data>
+  <data name="SettingsPrivacyLink" xml:space="preserve">
+    <value>プライバシーポリシー</value>
+  </data>
+  <data name="SettingsRegisteredFormat" xml:space="preserve">
+    <value>✓ {0} を登録しています</value>
+  </data>
+  <data name="SettingsSameAsNumberFormat" xml:space="preserve">
+    <value>× {0} は数字ショートカットと同じです</value>
+  </data>
+  <data name="SettingsSameAsOtherFormat" xml:space="preserve">
+    <value>× {0} はもう一方の機能と同じです</value>
+  </data>
+  <data name="SettingsSaveFailedFormat" xml:space="preserve">
+    <value>設定を保存できませんでした: {0}
+{1}</value>
+  </data>
+  <data name="SettingsShortcut" xml:space="preserve">
+    <value>通常ショートカット</value>
+  </data>
+  <data name="SettingsShortcutNote" xml:space="preserve">
+    <value>ショートカットは入力欄をクリックしてキーを押すと、その場で空いているかを確認します。確認できるのは他のアプリ・Windows のグローバルショートカットとの重なりだけで、アプリ内だけのショートカット（例: Excel の Ctrl+Alt+V）とは重なっても分かりません。</value>
+  </data>
+  <data name="SettingsSourceLink" xml:space="preserve">
+    <value>ソースコード</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>PlainClip 設定</value>
+  </data>
+  <data name="SettingsWebsiteLink" xml:space="preserve">
+    <value>Web ページ</value>
+  </data>
+  <data name="ShortcutBoxToolTip" xml:space="preserve">
+    <value>ここをクリックしてからキーを押してください（Backspace / Delete で未割当）</value>
+  </data>
+  <data name="ShortcutEmpty" xml:space="preserve">
+    <value>ショートカットが未設定です</value>
+  </data>
+  <data name="ShortcutModifierOnly" xml:space="preserve">
+    <value>修飾キーだけのショートカットは使えません</value>
+  </data>
+  <data name="ShortcutRequiresModifier" xml:space="preserve">
+    <value>Ctrl・Alt・Win のいずれかと組み合わせてください（F1～F24・PrintScreen などは単独可）</value>
+  </data>
+  <data name="ShortcutUnassigned" xml:space="preserve">
+    <value>（未割当）</value>
+  </data>
+  <data name="TrayClearHistory" xml:space="preserve">
+    <value>履歴をクリア</value>
+  </data>
+  <data name="TrayExit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="TrayGuide" xml:space="preserve">
+    <value>使い方</value>
+  </data>
+  <data name="TraySettings" xml:space="preserve">
+    <value>設定...</value>
+  </data>
+  <data name="TrayShowHistory" xml:space="preserve">
+    <value>履歴を表示</value>
+  </data>
+  <data name="TrayTooltipFormat" xml:space="preserve">
+    <value>PlainClip（履歴 {0} 件）</value>
+  </data>
+</root>

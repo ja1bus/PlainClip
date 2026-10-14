@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 画面に表示する文字列（英語。既定の言語で、日本語以外の環境ではこれを使う）。キーは Strings.ja.resx と必ずそろえる。 -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppUnexpectedErrorFormat" xml:space="preserve">
+    <value>An unexpected error occurred.
+{0}: {1}
+
+Details: {2}</value>
+  </data>
+  <data name="AppWillExit" xml:space="preserve">
+    <value>PlainClip will now exit.</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="AutoStartDisabledByPolicy" xml:space="preserve">
+    <value>Startup is controlled by your organization's policy and cannot be changed here.</value>
+  </data>
+  <data name="AutoStartDisabledByUser" xml:space="preserve">
+    <value>Startup for PlainClip is turned off in Windows Settings (Apps &gt; Startup) or Task Manager. Turn it on there.</value>
+  </data>
+  <data name="AutoStartFailedFormat" xml:space="preserve">
+    <value>Could not change automatic startup: {0}</value>
+  </data>
+  <data name="AutoStartNoPath" xml:space="preserve">
+    <value>Could not get the location of the executable.</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ClipboardListenFailed" xml:space="preserve">
+    <value>Could not start monitoring the clipboard. See error.log for details.</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="DoubleTapTwiceFormat" xml:space="preserve">
+    <value>{0} twice</value>
+  </data>
+  <data name="GuideCtrlV" xml:space="preserve">
+    <value>Normal paste in Windows (keeps formatting).</value>
+  </data>
+  <data name="GuideHeading" xml:space="preserve">
+    <value>PlainClip is running in the notification area</value>
+  </data>
+  <data name="GuideHistory" xml:space="preserve">
+    <value>Show the history. Choose an item with 1–9, or with ↑↓ and Enter, to paste it.</value>
+  </data>
+  <data name="GuideIntro" xml:space="preserve">
+    <value>Copy text as usual. PlainClip pastes it without formatting and keeps a short history of recent text in memory.</value>
+  </data>
+  <data name="GuideNote" xml:space="preserve">
+    <value>The history is kept only in memory and is cleared when PlainClip exits. To show this window again, right-click the tray icon and choose "How to use".</value>
+  </data>
+  <data name="GuideNumber" xml:space="preserve">
+    <value>Paste the history item with that number (1 = most recent) without opening the list.</value>
+  </data>
+  <data name="GuideNumberOff" xml:space="preserve">
+    <value>Not used (default). Turn them on in Settings to paste a history item by its number without opening the list.</value>
+  </data>
+  <data name="GuideNumberOffKey" xml:space="preserve">
+    <value>Number shortcuts</value>
+  </data>
+  <data name="GuideOpenSettings" xml:space="preserve">
+    <value>Open Settings</value>
+  </data>
+  <data name="GuidePaste" xml:space="preserve">
+    <value>Paste the text currently on the clipboard without formatting. If an image or file is on the clipboard, nothing is pasted.</value>
+  </data>
+  <data name="GuidePasteDisabled" xml:space="preserve">
+    <value>Turned off. You can choose a key in Settings.</value>
+  </data>
+  <data name="GuidePasteDisabledKey" xml:space="preserve">
+    <value>Plain-text paste</value>
+  </data>
+  <data name="GuideTitle" xml:space="preserve">
+    <value>How to use PlainClip</value>
+  </data>
+  <data name="GuideTrayKey" xml:space="preserve">
+    <value>Click the tray icon</value>
+  </data>
+  <data name="GuideTrayOrShortcutFormat" xml:space="preserve">
+    <value>{0}, or click the tray icon</value>
+  </data>
+  <data name="HistoryCopyOnlyBar" xml:space="preserve">
+    <value>There is no window to paste into, so the selected item is copied to the clipboard.</value>
+  </data>
+  <data name="HistoryCurrentMark" xml:space="preserve">
+    <value>On the clipboard now</value>
+  </data>
+  <data name="HistoryEmpty" xml:space="preserve">
+    <value>No history yet. Copied text will appear here.</value>
+  </data>
+  <data name="HistoryHintCopy" xml:space="preserve">
+    <value>Enter Copy · Del Delete · Esc Close</value>
+  </data>
+  <data name="HistoryHintEmpty" xml:space="preserve">
+    <value>Esc Close</value>
+  </data>
+  <data name="HistoryHintPaste" xml:space="preserve">
+    <value>Enter Paste · Del Delete · Esc Close</value>
+  </data>
+  <data name="HistoryLinesFormat" xml:space="preserve">
+    <value>{0} lines</value>
+  </data>
+  <data name="HistoryListName" xml:space="preserve">
+    <value>Clipboard history</value>
+  </data>
+  <data name="HistoryMenuCopy" xml:space="preserve">
+    <value>Copy to clipboard</value>
+  </data>
+  <data name="HistoryMenuDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="HistoryMenuPaste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="HistoryPreviewName" xml:space="preserve">
+    <value>Content of the selected item</value>
+  </data>
+  <data name="HookFailedFormat" xml:space="preserve">
+    <value>Could not start monitoring the keyboard (error {0}). Pasting by pressing a key twice is not available. Switch to a shortcut in Settings.</value>
+  </data>
+  <data name="HotkeyDuplicateFormat" xml:space="preserve">
+    <value>This shortcut ({0}) cannot be used. Another PlainClip function already uses it.</value>
+  </data>
+  <data name="HotkeyErrorFormat" xml:space="preserve">
+    <value>This shortcut ({0}) cannot be used (error {1}).</value>
+  </data>
+  <data name="HotkeyInUseFormat" xml:space="preserve">
+    <value>This shortcut ({0}) cannot be used. Another app or Windows is using it.</value>
+  </data>
+  <data name="HotkeyRegisteredFormat" xml:space="preserve">
+    <value>{0} is registered.</value>
+  </data>
+  <data name="HotkeySuspended" xml:space="preserve">
+    <value>Entering keys (temporarily unregistered)</value>
+  </data>
+  <data name="HotkeysFailedFormat" xml:space="preserve">
+    <value>These shortcuts cannot be used: {0}. Choose different keys in Settings.</value>
+  </data>
+  <data name="KeyLeftCtrl" xml:space="preserve">
+    <value>Left Ctrl</value>
+  </data>
+  <data name="KeyLeftShift" xml:space="preserve">
+    <value>Left Shift</value>
+  </data>
+  <data name="KeyRightCtrl" xml:space="preserve">
+    <value>Right Ctrl</value>
+  </data>
+  <data name="KeyRightShift" xml:space="preserve">
+    <value>Right Shift</value>
+  </data>
+  <data name="LanguageSystem" xml:space="preserve">
+    <value>Match the Windows display language</value>
+  </data>
+  <data name="NoticeCopied" xml:space="preserve">
+    <value>Copied as plain text.</value>
+  </data>
+  <data name="NoticeCopiedOnly" xml:space="preserve">
+    <value>The plain text is on the clipboard. Press Ctrl+V where you want to paste it.</value>
+  </data>
+  <data name="NoticeElevated" xml:space="preserve">
+    <value>The target window is running as administrator, so PlainClip may not be able to paste into it. If nothing was pasted, press Ctrl+V.</value>
+  </data>
+  <data name="NoticeEmpty" xml:space="preserve">
+    <value>The text on the clipboard is empty.</value>
+  </data>
+  <data name="NoticeFailed" xml:space="preserve">
+    <value>Could not use the clipboard. Please try again.</value>
+  </data>
+  <data name="NoticeFiles" xml:space="preserve">
+    <value>No text to paste (files are on the clipboard).</value>
+  </data>
+  <data name="NoticeNoHistoryFormat" xml:space="preserve">
+    <value>There is no history item {0}.</value>
+  </data>
+  <data name="NoticeNoText" xml:space="preserve">
+    <value>No text to paste (an image or other non-text content is on the clipboard).</value>
+  </data>
+  <data name="NoticeTooLong" xml:space="preserve">
+    <value>The text is too long to remove its formatting (up to 1,000,000 characters).</value>
+  </data>
+  <data name="NoticeUnavailable" xml:space="preserve">
+    <value>Could not read the clipboard (another app is using it).</value>
+  </data>
+  <data name="NumberKeysFormat" xml:space="preserve">
+    <value>{0}+1–9</value>
+  </data>
+  <data name="Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="PreviewWhitespaceOnly" xml:space="preserve">
+    <value>(whitespace only)</value>
+  </data>
+  <data name="RestartFailed" xml:space="preserve">
+    <value>Could not restart PlainClip. Please exit it and start it again.</value>
+  </data>
+  <data name="RestartPrompt" xml:space="preserve">
+    <value>The new language will be applied after PlainClip restarts. The history will be cleared.
+
+Restart PlainClip now?</value>
+  </data>
+  <data name="SettingsAutoStart" xml:space="preserve">
+    <value>Start PlainClip when Windows starts</value>
+  </data>
+  <data name="SettingsAvailableFormat" xml:space="preserve">
+    <value>✓ {0} can be registered (it does not overlap with global shortcuts of other apps).</value>
+  </data>
+  <data name="SettingsCorruptFormat" xml:space="preserve">
+    <value>Could not read the settings file, so PlainClip started with the default settings.
+{0}</value>
+  </data>
+  <data name="SettingsDetails" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="SettingsDisabled" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="SettingsDoubleTap" xml:space="preserve">
+    <value>Press a key twice:</value>
+  </data>
+  <data name="SettingsDoubleTapKeyName" xml:space="preserve">
+    <value>Key to press twice</value>
+  </data>
+  <data name="SettingsHistoryDisabled" xml:space="preserve">
+    <value>Off (click the tray icon to show the history)</value>
+  </data>
+  <data name="SettingsHistoryHeading" xml:space="preserve">
+    <value>Show history</value>
+  </data>
+  <data name="SettingsLanguage" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="SettingsLanguageNote" xml:space="preserve">
+    <value>Changes take effect after PlainClip restarts.</value>
+  </data>
+  <data name="SettingsLeftCtrlWarning" xml:space="preserve">
+    <value>Left Ctrl twice is also the default of PowerToys "Find My Mouse". If you use it, choose another key.</value>
+  </data>
+  <data name="SettingsLicenseLink" xml:space="preserve">
+    <value>MIT License</value>
+  </data>
+  <data name="SettingsLicenseToolTip" xml:space="preserve">
+    <value>PlainClip is open-source software released under the MIT License. Click to show the full license text.</value>
+  </data>
+  <data name="SettingsLicenseUnreadableFormat" xml:space="preserve">
+    <value>Could not read the license file. Check the following file.
+{0}</value>
+  </data>
+  <data name="SettingsLinkOpenFailedFormat" xml:space="preserve">
+    <value>Could not open the page in your browser.
+{0}
+
+URL: {1}</value>
+  </data>
+  <data name="SettingsMaxCount" xml:space="preserve">
+    <value>Maximum history items</value>
+  </data>
+  <data name="SettingsMaxCountUnit" xml:space="preserve">
+    <value>items</value>
+  </data>
+  <data name="SettingsMemoryNote" xml:space="preserve">
+    <value>The history is kept only in memory and is cleared when PlainClip exits (it is never saved to disk).</value>
+  </data>
+  <data name="SettingsMergeDuplicates" xml:space="preserve">
+    <value>Merge duplicates (copying the same text again moves it to the top)</value>
+  </data>
+  <data name="SettingsNoticesLink" xml:space="preserve">
+    <value>Third-party notices</value>
+  </data>
+  <data name="SettingsNoticesOpenFailedFormat" xml:space="preserve">
+    <value>Could not open the third-party notices. Check the following file.
+{0}</value>
+  </data>
+  <data name="SettingsNoticesToolTip" xml:space="preserve">
+    <value>Opens the notices for third-party software (such as .NET) in Notepad.</value>
+  </data>
+  <data name="SettingsNumberConflictFormat" xml:space="preserve">
+    <value>× {0} overlaps with a shortcut set above.</value>
+  </data>
+  <data name="SettingsNumberHeading" xml:space="preserve">
+    <value>Number shortcuts (paste history by number)</value>
+  </data>
+  <data name="SettingsNumberInUseFormat" xml:space="preserve">
+    <value>× Cannot be used: {0} (another app or Windows is using it). Choose another modifier.</value>
+  </data>
+  <data name="SettingsNumberNone" xml:space="preserve">
+    <value>Do not use</value>
+  </data>
+  <data name="SettingsNumberNote" xml:space="preserve">
+    <value>The numbers match the history list (1 = most recent). While in use, these keys no longer work in other apps. On many European keyboard layouts, Ctrl+Alt works as AltGr and is used to type characters.</value>
+  </data>
+  <data name="SettingsOtherHeading" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="SettingsPasteHeading" xml:space="preserve">
+    <value>Paste clipboard as plain text</value>
+  </data>
+  <data name="SettingsPasteNote" xml:space="preserve">
+    <value>Pastes the text currently on the clipboard. Nothing is pasted when an image or a file is copied.</value>
+  </data>
+  <data name="SettingsPressKey" xml:space="preserve">
+    <value>Click the box and press the keys to assign.</value>
+  </data>
+  <data name="SettingsPrivacyLink" xml:space="preserve">
+    <value>Privacy policy</value>
+  </data>
+  <data name="SettingsRegisteredFormat" xml:space="preserve">
+    <value>✓ {0} is registered.</value>
+  </data>
+  <data name="SettingsSameAsNumberFormat" xml:space="preserve">
+    <value>× {0} is the same as a number shortcut.</value>
+  </data>
+  <data name="SettingsSameAsOtherFormat" xml:space="preserve">
+    <value>× {0} is the same as the other function.</value>
+  </data>
+  <data name="SettingsSaveFailedFormat" xml:space="preserve">
+    <value>Could not save the settings: {0}
+{1}</value>
+  </data>
+  <data name="SettingsShortcut" xml:space="preserve">
+    <value>Shortcut</value>
+  </data>
+  <data name="SettingsShortcutNote" xml:space="preserve">
+    <value>Click a shortcut box and press keys to check right away whether the combination is free. Only overlaps with global shortcuts of other apps and Windows can be detected; overlaps with shortcuts that work only inside an app (for example Ctrl+Alt+V in Excel) cannot.</value>
+  </data>
+  <data name="SettingsSourceLink" xml:space="preserve">
+    <value>Source code</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>PlainClip Settings</value>
+  </data>
+  <data name="SettingsWebsiteLink" xml:space="preserve">
+    <value>Website</value>
+  </data>
+  <data name="ShortcutBoxToolTip" xml:space="preserve">
+    <value>Click here, then press keys (Backspace / Delete to clear).</value>
+  </data>
+  <data name="ShortcutEmpty" xml:space="preserve">
+    <value>No shortcut is set.</value>
+  </data>
+  <data name="ShortcutModifierOnly" xml:space="preserve">
+    <value>A shortcut cannot consist of modifier keys only.</value>
+  </data>
+  <data name="ShortcutRequiresModifier" xml:space="preserve">
+    <value>Combine with Ctrl, Alt or Win (F1–F24, Print Screen, etc. can be used alone).</value>
+  </data>
+  <data name="ShortcutUnassigned" xml:space="preserve">
+    <value>(none)</value>
+  </data>
+  <data name="TrayClearHistory" xml:space="preserve">
+    <value>Clear history</value>
+  </data>
+  <data name="TrayExit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="TrayGuide" xml:space="preserve">
+    <value>How to use</value>
+  </data>
+  <data name="TraySettings" xml:space="preserve">
+    <value>Settings...</value>
+  </data>
+  <data name="TrayShowHistory" xml:space="preserve">
+    <value>Show history</value>
+  </data>
+  <data name="TrayTooltipFormat" xml:space="preserve">
+    <value>PlainClip ({0} items in history)</value>
+  </data>
+</root>
