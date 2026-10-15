@@ -178,6 +178,9 @@
   <data name="NoticeEmpty" xml:space="preserve">
     <value>クリップボードのテキストが空です。</value>
   </data>
+  <data name="NoticeClipboardChanged" xml:space="preserve">
+    <value>クリップボードが変更されたため、貼り付けを中止しました。もう一度お試しください。</value>
+  </data>
   <data name="NoticeFailed" xml:space="preserve">
     <value>クリップボードを使用できませんでした。もう一度お試しください。</value>
   </data>

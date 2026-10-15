@@ -14,6 +14,7 @@ namespace PlainClip.Services;
 ///  - 監視はクリップボードを一切書き換えない。書き込むのは PlainClip から貼り付け・コピーするときだけ。
 ///  - 自分が書き込んだ内容の更新通知は、シーケンス番号と所有ウィンドウで見分けて履歴に入れない（ループ防止）。
 ///  - 「クリップボードを書式なしで貼り付け」では、押した時点のクリップボードを直接読む（<see cref="ReadCurrentAsync"/>。V2.0.0）。
+///  - コピー元の保護指定（履歴に含めない・クラウドへ同期しない）を読み、書き直すときは弱めずに付け直す（V2.0.1）。
 /// </summary>
 public sealed class ClipboardService : IDisposable
 {
@@ -55,8 +56,11 @@ public sealed class ClipboardService : IDisposable
         if (!_listening) ErrorLog.Write($"AddClipboardFormatListener に失敗（エラー {Marshal.GetLastWin32Error()}）");
     }
 
-    /// <summary>テキストのコピーを検知した（UI スレッド。正規化済みの本文）。除外指定付きのものは届かない。</summary>
-    public event Action<string>? TextCopied;
+    /// <summary>
+    /// テキストのコピーを検知した（UI スレッド。正規化済みの本文と、コピー元の保護指定）。履歴の対象外のものは届かない
+    /// （届くのはクラウド同期の禁止だけ。V2.0.1）。
+    /// </summary>
+    public event Action<string, ClipProtection>? TextCopied;
 
     /// <summary>
     /// 他のアプリによってクリップボードの内容が変わった（UI スレッド）。引数は履歴に入れるテキストならその本文、
@@ -68,11 +72,19 @@ public sealed class ClipboardService : IDisposable
 
     /// <summary>
     /// Unicode プレーンテキストをクリップボードへ設定する（UI スレッド）。他プロセスが開いていれば短時間リトライする。
-    /// <paramref name="sensitive"/> なら「履歴に残さない」指定（Windows のクリップボードの履歴・クラウド同期の対象外）も付ける。
-    /// 成功したら true。
+    /// <paramref name="protection"/> の保護指定（履歴に残さない・クラウドへ同期しない）も付ける。保護指定を付けられなければ
+    /// 本文も残さずに失敗にする（保護されていない本文を他のアプリ・Windows の履歴や同期へ渡さない。V2.0.1）。
+    /// 成功したら書き込み後のシーケンス番号（貼り付けの直前確認に使う）、失敗したら null。
     /// </summary>
-    public async Task<bool> SetTextAsync(string text, bool sensitive = false)
+    public async Task<uint?> SetTextAsync(string text, ClipProtection protection = ClipProtection.None)
     {
+        var markers = ClipProtectionRules.MarkersToWrite(protection);
+        if ((markers.ExcludeFromMonitor && ExcludeFormat == 0) || (markers.CanIncludeInHistoryZero && CanIncludeInHistoryFormat == 0)
+            || (markers.CanUploadToCloudZero && CanUploadFormat == 0))
+        {
+            ErrorLog.Write("保護指定の形式を登録できないため、クリップボードへ書き込みませんでした");
+            return null;
+        }
         for (var attempt = 0; attempt < OpenRetryCount; attempt++)
         {
             if (attempt > 0) await Task.Delay(OpenRetryDelayMs);
@@ -80,7 +92,13 @@ public sealed class ClipboardService : IDisposable
             var ok = false;
             try
             {
-                ok = EmptyClipboard() && PutUnicodeText(text) && (!sensitive || PutSensitiveMarkers());
+                // 目印を先に置き、本文はその後。途中で失敗したら閉じる前に空にする（他のアプリが読めるのは閉じた後）。
+                ok = EmptyClipboard()
+                    && (!markers.ExcludeFromMonitor || PutDword(ExcludeFormat, 0))
+                    && (!markers.CanIncludeInHistoryZero || PutDword(CanIncludeInHistoryFormat, 0))
+                    && (!markers.CanUploadToCloudZero || PutDword(CanUploadFormat, 0))
+                    && PutUnicodeText(text);
+                if (!ok) EmptyClipboard();
             }
             finally
             {
@@ -88,18 +106,19 @@ public sealed class ClipboardService : IDisposable
             }
             // 自分の書き込みによる WM_CLIPBOARDUPDATE を履歴に入れないため、書き込み後の番号を覚える。
             _ownSequence = GetClipboardSequenceNumber();
-            if (ok) return true;
+            if (ok) return _ownSequence;
             ErrorLog.Write($"クリップボードへの書き込みに失敗（エラー {Marshal.GetLastWin32Error()}）");
-            return false;
+            return null;
         }
         ErrorLog.Write("クリップボードを開けませんでした（他のアプリが使用中）");
-        return false;
+        return null;
     }
 
     /// <summary>
     /// 現在のクリップボードを読んで、書式なしで貼れるか判定する（スレッドプールで読む）。
     /// PlainClip 自身が書き込んだ内容も対象にする（履歴から貼った内容を続けて貼れるように）。
     /// 除外指定付き（パスワード管理ソフト等）も貼れる（履歴には入れない。書き直すときは同じ指定を付ける）。
+    /// 読んだ時点のシーケンス番号も返す（書き直さずに貼るときの直前確認。V2.0.1）。
     /// </summary>
     public Task<PasteSource> ReadCurrentAsync() => Task.Run(ReadCurrent);
 
@@ -146,7 +165,7 @@ public sealed class ClipboardService : IDisposable
             if (t.IsFaulted) ErrorLog.Write("クリップボードの読み取りに失敗", t.Exception?.GetBaseException());
             else if (!t.Result.Ignore)
             {
-                if (t.Result.Text is { } text) TextCopied?.Invoke(text);
+                if (t.Result.Text is { } text) TextCopied?.Invoke(text, t.Result.Protection);
                 ContentChanged?.Invoke(t.Result.Text);
             }
             if (_readAgain)
@@ -161,22 +180,23 @@ public sealed class ClipboardService : IDisposable
     /// 現在のクリップボードからプレーンテキストを読む（スレッドプール）。履歴に入れないものは Text = null。
     /// PlainClip 自身の書き込み・開けなかった場合は Ignore = true（「現在のクリップボード」の印も変えない）。
     /// </summary>
-    private static (bool Ignore, string? Text) ReadText(IntPtr ownWindow, uint ownSequence)
+    private static (bool Ignore, string? Text, ClipProtection Protection) ReadText(IntPtr ownWindow, uint ownSequence)
     {
         for (var attempt = 0; attempt < OpenRetryCount; attempt++)
         {
             if (attempt > 0) Thread.Sleep(OpenRetryDelayMs);
-            if (GetClipboardSequenceNumber() == ownSequence) return (true, null);
+            if (GetClipboardSequenceNumber() == ownSequence) return (true, null, ClipProtection.None);
             if (!OpenClipboard(IntPtr.Zero)) continue;
             try
             {
-                if (GetClipboardOwner() == ownWindow) return (true, null); // PlainClip 自身が書いた内容
-                if (IsExcluded()) return (false, null);
+                if (GetClipboardOwner() == ownWindow) return (true, null, ClipProtection.None); // PlainClip 自身が書いた内容
+                var protection = ReadProtection();
+                if (protection.HasFlag(ClipProtection.ExcludeFromHistory)) return (false, null, protection);
                 // ファイルのコピー（エクスプローラー）はテキストとして扱わない。
-                if (IsClipboardFormatAvailable(CF_HDROP)) return (false, null);
+                if (IsClipboardFormatAvailable(CF_HDROP)) return (false, null, protection);
                 // CF_TEXT / CF_OEMTEXT しか無い場合も、OS が CF_UNICODETEXT を合成して返す。
-                if (!IsClipboardFormatAvailable(CF_UNICODETEXT)) return (false, null);
-                return (false, PlainTextNormalizer.Normalize(GetUnicodeText()));
+                if (!IsClipboardFormatAvailable(CF_UNICODETEXT)) return (false, null, protection);
+                return (false, PlainTextNormalizer.Normalize(GetUnicodeText()), protection);
             }
             finally
             {
@@ -184,7 +204,7 @@ public sealed class ClipboardService : IDisposable
             }
         }
         ErrorLog.Write("クリップボードを開けませんでした（読み取り。他のアプリが使用中）");
-        return (true, null);
+        return (true, null, ClipProtection.None);
     }
 
     /// <summary>「クリップボードを書式なしで貼り付け」用に現在の内容を判定する（スレッドプール）。</summary>
@@ -198,9 +218,11 @@ public sealed class ClipboardService : IDisposable
             {
                 var hasFiles = IsClipboardFormatAvailable(CF_HDROP);
                 var hasText = IsClipboardFormatAvailable(CF_UNICODETEXT);
-                if (hasFiles || !hasText) return PasteSourceRules.Decide(hasFiles, hasText, null, false, false);
-                return PasteSourceRules.Decide(false, true, GetUnicodeText(), IsExcluded(),
+                if (hasFiles || !hasText) return PasteSourceRules.Decide(hasFiles, hasText, null, ClipProtection.None, false);
+                var source = PasteSourceRules.Decide(false, true, GetUnicodeText(), ReadProtection(),
                     PasteSourceRules.OnlyPlainText(EnumerateFormats(), MarkerFormats));
+                // 本文を読んだ（遅延レンダリングがあれば済んだ）後の番号。開いている間は他のアプリが変えられない。
+                return source with { Sequence = GetClipboardSequenceNumber() };
             }
             finally
             {
@@ -221,29 +243,32 @@ public sealed class ClipboardService : IDisposable
     }
 
     /// <summary>
-    /// パスワードマネージャー等が「履歴に残さない」と指定したコピーか（Windows の「クリップボードの履歴」と同じ規約）。
+    /// パスワードマネージャー等がコピーに付けた保護指定（Windows の「クリップボードの履歴」と同じ規約。開いている間だけ呼ぶ）。
+    /// 履歴に含めない指定と、クラウドへ同期しない指定は独立している（V2.0.1）。値を読めない指定は禁止とみなす。
     /// </summary>
-    private static bool IsExcluded()
+    private static ClipProtection ReadProtection() => ClipProtectionRules.FromMarkers(
+        ExcludeFormat != 0 && IsClipboardFormatAvailable(ExcludeFormat),
+        ViewerIgnoreFormat != 0 && IsClipboardFormatAvailable(ViewerIgnoreFormat),
+        ReadDword(CanIncludeInHistoryFormat),
+        ReadDword(CanUploadFormat));
+
+    /// <summary>DWORD の目印（0 = 禁止）を読む。</summary>
+    private static MarkerValue ReadDword(uint format)
     {
-        if (ExcludeFormat != 0 && IsClipboardFormatAvailable(ExcludeFormat)) return true;
-        if (ViewerIgnoreFormat != 0 && IsClipboardFormatAvailable(ViewerIgnoreFormat)) return true;
-        if (CanIncludeInHistoryFormat != 0 && IsClipboardFormatAvailable(CanIncludeInHistoryFormat))
+        if (format == 0 || !IsClipboardFormatAvailable(format)) return MarkerValue.Absent;
+        var handle = GetClipboardData(format);
+        if (handle == IntPtr.Zero) return MarkerValue.Unreadable;
+        var ptr = GlobalLock(handle);
+        if (ptr == IntPtr.Zero) return MarkerValue.Unreadable;
+        try
         {
-            // DWORD 0 = 履歴に含めない。
-            var handle = GetClipboardData(CanIncludeInHistoryFormat);
-            if (handle == IntPtr.Zero) return false;
-            var ptr = GlobalLock(handle);
-            if (ptr == IntPtr.Zero) return false;
-            try
-            {
-                return (ulong)GlobalSize(handle) >= 4 && Marshal.ReadInt32(ptr) == 0;
-            }
-            finally
-            {
-                GlobalUnlock(handle);
-            }
+            if ((ulong)GlobalSize(handle) < 4) return MarkerValue.Unreadable;
+            return Marshal.ReadInt32(ptr) == 0 ? MarkerValue.Denied : MarkerValue.Allowed;
         }
-        return false;
+        finally
+        {
+            GlobalUnlock(handle);
+        }
     }
 
     private static string? GetUnicodeText()
@@ -298,20 +323,6 @@ public sealed class ClipboardService : IDisposable
         if (SetClipboardData(CF_UNICODETEXT, hMem) != IntPtr.Zero) return true; // 以後の解放はシステムが行う
         GlobalFree(hMem);
         return false;
-    }
-
-    /// <summary>
-    /// 「履歴に残さない」指定を付ける（パスワード管理ソフト等の内容を書き直すとき）。Windows の「クリップボードの履歴」と同じ規約:
-    /// ExcludeClipboardContentFromMonitorProcessing、CanIncludeInClipboardHistory = 0、CanUploadToCloudClipboard = 0。
-    /// </summary>
-    private static bool PutSensitiveMarkers()
-    {
-        var ok = true;
-        foreach (var format in new[] { ExcludeFormat, CanIncludeInHistoryFormat, CanUploadFormat })
-        {
-            if (format != 0) ok &= PutDword(format, 0);
-        }
-        return ok;
     }
 
     private static bool PutDword(uint format, int value)

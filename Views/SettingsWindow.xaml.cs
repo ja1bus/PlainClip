@@ -67,6 +67,7 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         var scale = UiLook.Apply(this);
         Width = 540 * scale;
+        UiLook.FitToWorkArea(this);
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         VersionText.Text = $"PlainClip v{version?.ToString(3)}  © ja1bus";

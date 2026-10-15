@@ -224,6 +224,7 @@ public partial class HistoryWindow : Window
         Width = BaseWidth * scale;
         List.MaxHeight = 420 * scale;
         PreviewBody.MaxHeight = 150 * scale;
+        UiLook.FitToWorkArea(this); // 一覧は作業領域に収まる高さまで（あふれた分はスクロール。V2.0.1）
         ApplyColors(UiLook.HighContrast);
     }
 

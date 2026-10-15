@@ -178,6 +178,9 @@ Details: {2}</value>
   <data name="NoticeEmpty" xml:space="preserve">
     <value>The text on the clipboard is empty.</value>
   </data>
+  <data name="NoticeClipboardChanged" xml:space="preserve">
+    <value>The clipboard changed before pasting, so nothing was pasted. Please try again.</value>
+  </data>
   <data name="NoticeFailed" xml:space="preserve">
     <value>Could not use the clipboard. Please try again.</value>
   </data>

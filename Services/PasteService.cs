@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using PlainClip.Core.Text;
 using static PlainClip.Interop.NativeMethods;
 
 namespace PlainClip.Services;
@@ -20,6 +21,11 @@ public enum PasteResult
     /// Ctrl+V は送ったうえで（判定が外れても貼れるように）、利用者に Ctrl+V を押すよう案内する。
     /// </summary>
     TargetElevated,
+
+    /// <summary>
+    /// 待っている間に他のアプリ・利用者がクリップボードを変えたため、Ctrl+V を送らなかった（V2.0.1）。新しい内容は上書きしない。
+    /// </summary>
+    ClipboardChanged,
 }
 
 /// <summary>
@@ -27,6 +33,7 @@ public enum PasteResult
 /// 1. Unicode プレーンテキストをクリップボードへ設定 → 2. 元のウィンドウを前面に戻す →
 /// 3. 修飾キー（ショートカットで押している Ctrl・Alt 等）が離されるのを待つ → 4. SendInput で Ctrl+V。
 /// 貼り付け後に元の HTML/RTF 付きクリップボードは復元しない（V1 仕様）。
+/// Ctrl+V の直前に、クリップボードが設定した（読んだ）ときのままかをシーケンス番号で確かめ、変わっていたら送らない（V2.0.1）。
 /// </summary>
 public sealed class PasteService
 {
@@ -48,30 +55,46 @@ public sealed class PasteService
     }
 
     /// <param name="text">クリップボードへ設定する本文。null ならクリップボードはそのまま（すでにプレーンテキスト）で Ctrl+V だけを送る。</param>
-    /// <param name="sensitive">「履歴に残さない」指定を付けて設定するか（パスワード管理ソフト等の内容）。</param>
+    /// <param name="protection">設定するときに付ける保護指定（パスワード管理ソフト等の「履歴に残さない」、クラウド同期の禁止）。</param>
     /// <param name="target">貼り付け先のトップレベルウィンドウ。貼り付け先として不適切なら設定だけ行う。</param>
     /// <param name="triggerVk">操作に使ったキー（Enter・数字キー等）。離されるまで Ctrl+V を送らない。0 なら無し。</param>
-    public async Task<PasteResult> PasteAsync(string? text, bool sensitive, IntPtr target, int triggerVk = 0)
+    /// <param name="sourceSequence"><paramref name="text"/> が null のとき、クリップボードを読んだ時点のシーケンス番号。</param>
+    public async Task<PasteResult> PasteAsync(string? text, ClipProtection protection, IntPtr target, int triggerVk = 0, uint sourceSequence = 0)
     {
-        if (text is not null && !await _clipboard.SetTextAsync(text, sensitive)) return PasteResult.Failed;
-        if (!WindowHelper.IsPasteTarget(target)) return PasteResult.CopiedOnly;
+        var expected = sourceSequence;
+        if (text is not null)
+        {
+            if (await _clipboard.SetTextAsync(text, protection) is not { } written) return PasteResult.Failed;
+            expected = written;
+        }
+        if (!WindowHelper.IsPasteTarget(target)) return CopiedOnly();
         var elevated = WindowHelper.IsElevatedTarget(target);
 
         if (!await ActivateAsync(target))
         {
             ErrorLog.Write("貼り付け先のウィンドウを前面にできませんでした（クリップボードへの設定のみ）");
-            return PasteResult.CopiedOnly;
+            return CopiedOnly();
         }
         if (!await WaitForKeysReleasedAsync(triggerVk))
         {
             ErrorLog.Write("修飾キーが離されなかったため Ctrl+V を送りませんでした（クリップボードへの設定のみ）");
-            return PasteResult.CopiedOnly;
+            return CopiedOnly();
         }
         await Task.Delay(SettleMs);
-        if (WindowHelper.RootOf(GetForegroundWindow()) != WindowHelper.RootOf(target)) return PasteResult.CopiedOnly;
+        if (WindowHelper.RootOf(GetForegroundWindow()) != WindowHelper.RootOf(target)) return CopiedOnly();
+        // 送信と貼り付け先の読み取りを不可分にはできないが、前面化・キー待ちの長い間に変わったものは貼らない。
+        if (!PasteGuard.ClipboardUnchanged(expected, GetClipboardSequenceNumber()))
+        {
+            ErrorLog.Write("待っている間にクリップボードが変わったため Ctrl+V を送りませんでした");
+            return PasteResult.ClipboardChanged;
+        }
         if (!SendCtrlV()) return elevated ? PasteResult.TargetElevated : PasteResult.CopiedOnly;
         // UIPI で遮られても SendInput は成功を返すため、管理者のウィンドウは結果を区別して案内する。
         return elevated ? PasteResult.TargetElevated : PasteResult.Pasted;
+
+        // 貼らずに終えるとき、待っている間にクリップボードが変わっていたら「Ctrl+V を押して」とは案内しない。
+        PasteResult CopiedOnly() =>
+            PasteGuard.ClipboardUnchanged(expected, GetClipboardSequenceNumber()) ? PasteResult.CopiedOnly : PasteResult.ClipboardChanged;
     }
 
     private static async Task<bool> ActivateAsync(IntPtr target)

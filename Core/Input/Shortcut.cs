@@ -43,6 +43,11 @@ public readonly record struct Shortcut(KeyModifiers Modifiers, int Key)
         return (held & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Win)) != 0 || KeyNames.IsStandaloneKey(vk);
     }
 
+    /// <summary>
+    /// 入力欄で押しても値にせず、画面の「キャンセル」に渡すキーか（修飾なしの Esc。V2.0.1）。Shift+Esc 等は値として扱う（規則違反として表示）。
+    /// </summary>
+    public static bool IsCancelKey(int vk, KeyModifiers held) => vk == 0x1B && held == KeyModifiers.None;
+
     public static bool TryParse(string? text, out Shortcut shortcut)
     {
         shortcut = None;

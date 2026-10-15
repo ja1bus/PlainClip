@@ -117,7 +117,7 @@ public class PasteSourceTests
     [Fact]
     public void テキストがあれば貼る()
     {
-        var s = PasteSourceRules.Decide(false, true, "abc", false, onlyPlainText: false);
+        var s = PasteSourceRules.Decide(false, true, "abc", ClipProtection.None, onlyPlainText: false);
         Assert.Equal(PasteSourceKind.Text, s.Kind);
         Assert.Equal("abc", s.Text);
         Assert.True(s.NeedsRewrite); // 書式付き → プレーンテキストに書き直す
@@ -126,7 +126,7 @@ public class PasteSourceTests
     [Fact]
     public void すでにプレーンテキストなら書き直さない()
     {
-        var s = PasteSourceRules.Decide(false, true, "abc", false, onlyPlainText: true);
+        var s = PasteSourceRules.Decide(false, true, "abc", ClipProtection.None, onlyPlainText: true);
         Assert.Equal(PasteSourceKind.Text, s.Kind);
         Assert.False(s.NeedsRewrite);
     }
@@ -134,7 +134,7 @@ public class PasteSourceTests
     [Fact]
     public void プレーンテキストでも正規化で変わるなら書き直す()
     {
-        var s = PasteSourceRules.Decide(false, true, "a\u00A0b", false, onlyPlainText: true);
+        var s = PasteSourceRules.Decide(false, true, "a\u00A0b", ClipProtection.None, onlyPlainText: true);
         Assert.True(s.NeedsRewrite);
         Assert.Equal("a b", s.Text);
     }
@@ -142,16 +142,16 @@ public class PasteSourceTests
     [Fact]
     public void 画像だけ_ファイル_空は貼らない()
     {
-        Assert.Equal(PasteSourceKind.NoText, PasteSourceRules.Decide(false, false, null, false, false).Kind);
-        Assert.Equal(PasteSourceKind.Files, PasteSourceRules.Decide(true, true, "C:\\a.txt", false, false).Kind);
-        Assert.Equal(PasteSourceKind.Empty, PasteSourceRules.Decide(false, true, "", false, true).Kind);
-        Assert.Equal(PasteSourceKind.Unavailable, PasteSourceRules.Decide(false, true, null, false, true).Kind);
+        Assert.Equal(PasteSourceKind.NoText, PasteSourceRules.Decide(false, false, null, ClipProtection.None, false).Kind);
+        Assert.Equal(PasteSourceKind.Files, PasteSourceRules.Decide(true, true, "C:\\a.txt", ClipProtection.None, false).Kind);
+        Assert.Equal(PasteSourceKind.Empty, PasteSourceRules.Decide(false, true, "", ClipProtection.None, true).Kind);
+        Assert.Equal(PasteSourceKind.Unavailable, PasteSourceRules.Decide(false, true, null, ClipProtection.None, true).Kind);
     }
 
     [Fact]
     public void 除外指定付きも貼り_書き直すときは指定を引き継ぐ()
     {
-        var s = PasteSourceRules.Decide(false, true, "secret", sensitive: true, onlyPlainText: false);
+        var s = PasteSourceRules.Decide(false, true, "secret", ClipProtection.ExcludeFromHistory, onlyPlainText: false);
         Assert.Equal(PasteSourceKind.Text, s.Kind);
         Assert.True(s.Sensitive);
         Assert.True(s.NeedsRewrite);
@@ -161,8 +161,8 @@ public class PasteSourceTests
     public void 長すぎる書式付きは貼らず_プレーンテキストならそのまま貼る()
     {
         var huge = new string('x', PlainTextNormalizer.MaxLength + 1);
-        Assert.Equal(PasteSourceKind.TooLong, PasteSourceRules.Decide(false, true, huge, false, onlyPlainText: false).Kind);
-        var plain = PasteSourceRules.Decide(false, true, huge, false, onlyPlainText: true);
+        Assert.Equal(PasteSourceKind.TooLong, PasteSourceRules.Decide(false, true, huge, ClipProtection.None, onlyPlainText: false).Kind);
+        var plain = PasteSourceRules.Decide(false, true, huge, ClipProtection.None, onlyPlainText: true);
         Assert.Equal(PasteSourceKind.Text, plain.Kind);
         Assert.False(plain.NeedsRewrite);
     }

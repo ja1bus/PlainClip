@@ -28,10 +28,20 @@ public enum PasteSourceKind
 /// プレーンテキストへ書き直す必要があるか。すでにプレーンテキストだけ（かつ正規化で変わらない）なら書き直さずに Ctrl+V だけを送る
 /// （Win+V の履歴に同じ内容が二重に入らず、パスワード管理ソフト等がクリップボードの所有者のままになる）。
 /// </param>
-/// <param name="Sensitive">パスワード管理ソフト等の「履歴に残さない」指定付き。書き直すときも同じ指定を付ける。</param>
-public sealed record PasteSource(PasteSourceKind Kind, string Text = "", bool NeedsRewrite = false, bool Sensitive = false)
+/// <param name="Protection">
+/// コピー元の保護指定（パスワード管理ソフト等の「履歴に残さない」、クラウド同期の禁止。V2.0.1）。書き直すときも同じ指定を付ける。
+/// </param>
+public sealed record PasteSource(PasteSourceKind Kind, string Text = "", bool NeedsRewrite = false, ClipProtection Protection = ClipProtection.None)
 {
     public static readonly PasteSource Unavailable = new(PasteSourceKind.Unavailable);
+
+    /// <summary>「履歴に残さない」指定付き（PlainClip の履歴・「現在のクリップボード」の印にも使わない）。</summary>
+    public bool Sensitive => Protection.HasFlag(ClipProtection.ExcludeFromHistory);
+
+    /// <summary>
+    /// 読み取った時点のクリップボードのシーケンス番号（V2.0.1）。書き直さずに貼るとき、Ctrl+V を送る直前に変わっていないことを確かめる。
+    /// </summary>
+    public uint Sequence { get; init; }
 }
 
 /// <summary>
@@ -52,9 +62,9 @@ public static class PasteSourceRules
     /// <param name="hasFileDrop">CF_HDROP があるか。</param>
     /// <param name="hasUnicodeText">CF_UNICODETEXT があるか（CF_TEXT だけでも OS が合成する）。</param>
     /// <param name="rawText">読んだ本文（NUL 終端まで。<see cref="PlainTextNormalizer.MaxLength"/> + 1 文字で打ち切ってよい）。読めなければ null。</param>
-    /// <param name="sensitive">「履歴に残さない」指定付きか。</param>
+    /// <param name="protection">コピー元の保護指定。</param>
     /// <param name="onlyPlainText"><see cref="OnlyPlainText"/> の結果。</param>
-    public static PasteSource Decide(bool hasFileDrop, bool hasUnicodeText, string? rawText, bool sensitive, bool onlyPlainText)
+    public static PasteSource Decide(bool hasFileDrop, bool hasUnicodeText, string? rawText, ClipProtection protection, bool onlyPlainText)
     {
         if (hasFileDrop) return new PasteSource(PasteSourceKind.Files);
         if (!hasUnicodeText) return new PasteSource(PasteSourceKind.NoText);
@@ -63,11 +73,11 @@ public static class PasteSourceRules
         {
             // すでにプレーンテキストなら書き直さずに貼れる。書式付きは書き直せないので貼らない。
             return onlyPlainText
-                ? new PasteSource(PasteSourceKind.Text, "", NeedsRewrite: false, sensitive)
+                ? new PasteSource(PasteSourceKind.Text, "", NeedsRewrite: false, protection)
                 : new PasteSource(PasteSourceKind.TooLong);
         }
         var text = PlainTextNormalizer.Normalize(rawText);
         if (text is null) return new PasteSource(PasteSourceKind.Empty);
-        return new PasteSource(PasteSourceKind.Text, text, NeedsRewrite: !onlyPlainText || text != rawText, sensitive);
+        return new PasteSource(PasteSourceKind.Text, text, NeedsRewrite: !onlyPlainText || text != rawText, protection);
     }
 }

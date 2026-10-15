@@ -82,7 +82,7 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _tray.ExitRequested += (_, _) => Exit();
 
         _clipboard = new ClipboardService(_app.Dispatcher);
-        _clipboard.TextCopied += text => _history.Add(text);
+        _clipboard.TextCopied += (text, protection) => _history.Add(text, protection);
         _clipboard.ContentChanged += text =>
         {
             _currentClipText = text;
@@ -185,8 +185,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
                 return;
             }
             var text = source.NeedsRewrite ? source.Text : null;
-            var result = await _paste.PasteAsync(text, source.Sensitive, target);
-            if (text is not null && result != PasteResult.Failed) SetCurrentClipText(source.Sensitive ? null : text);
+            var result = await _paste.PasteAsync(text, source.Protection, target, sourceSequence: source.Sequence);
+            if (text is not null && Wrote(result)) SetCurrentClipText(source.Sensitive ? null : text);
             Report(result);
         }
         catch (Exception ex)
@@ -214,8 +214,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _pasting = true;
         try
         {
-            var result = await _paste.PasteAsync(item.Text, false, target, '0' + number);
-            if (result != PasteResult.Failed) SetCurrentClipText(item.Text);
+            var result = await _paste.PasteAsync(item.Text, item.Protection, target, '0' + number);
+            if (Wrote(result)) SetCurrentClipText(item.Text);
             Report(result);
         }
         catch (Exception ex)
@@ -241,13 +241,13 @@ public sealed class AppHost : ISettingsHost, IDisposable
             // 貼り付け・コピーしても履歴は並べ替えない（V2.0.0。番号を固定する）。
             if (pasteMode)
             {
-                var result = await _paste.PasteAsync(item.Text, false, target, triggerVk);
-                if (result != PasteResult.Failed) SetCurrentClipText(item.Text);
+                var result = await _paste.PasteAsync(item.Text, item.Protection, target, triggerVk);
+                if (Wrote(result)) SetCurrentClipText(item.Text);
                 Report(result);
             }
             else
             {
-                var ok = await _clipboard.SetTextAsync(item.Text);
+                var ok = await _clipboard.SetTextAsync(item.Text, item.Protection) is not null;
                 RestoreFocus(target);
                 if (ok) SetCurrentClipText(item.Text);
                 NoticeWindow.Display(ok ? Strings.NoticeCopied : Strings.NoticeFailed);
@@ -272,10 +272,14 @@ public sealed class AppHost : ISettingsHost, IDisposable
             PasteResult.CopiedOnly => Strings.NoticeCopiedOnly,
             PasteResult.Failed => Strings.NoticeFailed,
             PasteResult.TargetElevated => Strings.NoticeElevated,
+            PasteResult.ClipboardChanged => Strings.NoticeClipboardChanged,
             _ => null,
         };
         if (message is not null) NoticeWindow.Display(message, seconds: 3.5);
     }
+
+    /// <summary>PlainClip が書いた内容がクリップボードに残っているか（失敗・待っている間に他のアプリが変えた場合は残っていない）。</summary>
+    private static bool Wrote(PasteResult result) => result is not (PasteResult.Failed or PasteResult.ClipboardChanged);
 
     private static string DescribeNoText(PasteSourceKind kind) => kind switch
     {

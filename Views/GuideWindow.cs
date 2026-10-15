@@ -27,13 +27,15 @@ public sealed class GuideWindow : Window
         UseLayoutRounding = true;
         var scale = UiLook.Apply(this);
         Width = 500 * scale;
+        UiLook.FitToWorkArea(this);
         if (!UiLook.HighContrast)
         {
             Background = Brushes.White;
             Foreground = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A));
         }
 
-        var root = new StackPanel { Margin = new Thickness(20, 16, 20, 16) };
+        // 説明はスクロールでき、ボタンは下に固定する（文字の拡大・小さい画面でも閉じられるように。V2.0.1）。
+        var root = new StackPanel { Margin = new Thickness(20, 16, 20, 0) };
         root.Children.Add(new TextBlock
         {
             Text = Strings.GuideHeading,
@@ -64,7 +66,7 @@ public sealed class GuideWindow : Window
             Opacity = UiLook.HighContrast ? 1 : 0.8,
         });
 
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(20, 16, 20, 16) };
         var settings = new Button { Content = Strings.GuideOpenSettings, MinWidth = 110 * scale, Padding = new Thickness(10, 3, 10, 3) };
         settings.Click += (_, _) =>
         {
@@ -75,9 +77,18 @@ public sealed class GuideWindow : Window
         close.Click += (_, _) => Close();
         buttons.Children.Add(settings);
         buttons.Children.Add(close);
-        root.Children.Add(buttons);
 
-        Content = root;
+        var layout = new DockPanel();
+        DockPanel.SetDock(buttons, Dock.Bottom);
+        layout.Children.Add(buttons);
+        layout.Children.Add(new ScrollViewer
+        {
+            Content = root,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Focusable = false,
+        });
+        Content = layout;
         Loaded += (_, _) => close.Focus();
     }
 

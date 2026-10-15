@@ -5,9 +5,10 @@ namespace PlainClip.Core.History;
 /// <summary>履歴の 1 件。本文は全文を保持し、一覧用の表示文字列は追加時に一度だけ作る。</summary>
 public sealed class ClipItem
 {
-    public ClipItem(string text)
+    public ClipItem(string text, ClipProtection protection = ClipProtection.None)
     {
         Text = text;
+        Protection = protection;
         Preview = PreviewText.Create(text);
         LineCount = PreviewText.CountLines(text);
     }
@@ -18,6 +19,12 @@ public sealed class ClipItem
     public string Preview { get; }
 
     public int LineCount { get; }
+
+    /// <summary>
+    /// コピー元の保護指定（V2.0.1。履歴に入るのはクラウド同期の禁止だけ）。貼り付け・コピーで書き直すときに同じ指定を付ける。
+    /// 同じ本文が別の指定で再度コピーされたら、厳しい方へ強める（弱めない）。
+    /// </summary>
+    public ClipProtection Protection { get; internal set; }
 }
 
 /// <summary>
@@ -55,11 +62,18 @@ public sealed class ClipHistory
         }
     }
 
-    /// <summary>先頭に追加する。空文字は追加しない。追加（または先頭へ移動）したら true。</summary>
-    public bool Add(string text)
+    /// <summary>
+    /// 先頭に追加する。空文字は追加しない。追加（または先頭へ移動）したら true。
+    /// 同じ本文の既存項目には、<paramref name="protection"/> を加える（保護指定を弱めない。V2.0.1）。
+    /// </summary>
+    public bool Add(string text, ClipProtection protection = ClipProtection.None)
     {
         if (string.IsNullOrEmpty(text)) return false;
-        if (_items.Count > 0 && _items[0].Text == text) return false; // 直前と同じ: 変化なし
+        if (_items.Count > 0 && _items[0].Text == text)
+        {
+            _items[0].Protection |= protection; // 直前と同じ: 並びは変えない
+            return false;
+        }
 
         if (MergeDuplicates)
         {
@@ -67,6 +81,7 @@ public sealed class ClipHistory
             if (existing >= 0)
             {
                 var item = _items[existing];
+                item.Protection |= protection;
                 _items.RemoveAt(existing);
                 _items.Insert(0, item);
                 OnChanged();
@@ -74,7 +89,7 @@ public sealed class ClipHistory
             }
         }
 
-        _items.Insert(0, new ClipItem(text));
+        _items.Insert(0, new ClipItem(text, protection));
         Trim();
         OnChanged();
         return true;

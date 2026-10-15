@@ -278,6 +278,12 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 
+    public const int MDT_EFFECTIVE_DPI = 0;
+
+    /// <summary>モニターの拡大率（DPI）。成功なら 0（S_OK）。</summary>
+    [DllImport("shcore.dll")]
+    public static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+
     // --- ウィンドウの拡張スタイル（案内の表示をフォーカスを奪わない窓にする） ---
     public const int GWL_EXSTYLE = -20;
     public const long WS_EX_TOOLWINDOW = 0x00000080;

@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using Microsoft.Win32;
+using static PlainClip.Interop.NativeMethods;
 
 namespace PlainClip.Views;
 
@@ -41,5 +43,24 @@ public static class UiLook
         window.FontFamily = UiFont.Family;
         window.FontSize = baseFontSize * scale;
         return scale;
+    }
+
+    /// <summary>
+    /// 画面の幅・高さの上限を、マウスのあるモニターの作業領域（タスクバーを除く）に合わせる（V2.0.1）。
+    /// 文字を拡大した・小さい画面でもはみ出さず、内容はスクロールで読めるようにする（表示する画面がスクロール領域を持つこと）。
+    /// 中央に出す画面・マウスの近くに出す履歴一覧とも、表示されるのはこのモニター。
+    /// </summary>
+    public static void FitToWorkArea(Window window)
+    {
+        if (!GetCursorPos(out var cursor)) return;
+        var monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return;
+        // Per-Monitor V2 では、そのモニターに置いたウィンドウの DIP = 物理ピクセル × 96 / モニターの DPI。
+        var dpi = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out var dpiX, out _) == 0 && dpiX > 0 ? dpiX : 96u;
+        var work = info.rcWork;
+        window.MaxWidth = (work.Right - work.Left) * 96.0 / dpi;
+        window.MaxHeight = (work.Bottom - work.Top) * 96.0 / dpi;
+        if (window.Width > window.MaxWidth) window.Width = window.MaxWidth;
     }
 }

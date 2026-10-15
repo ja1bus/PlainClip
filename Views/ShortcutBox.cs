@@ -65,9 +65,11 @@ public sealed class ShortcutBox : TextBox
         };
         // 修飾なしの Tab はフォーカス移動に使う。
         if (key == Key.Tab && Keyboard.Modifiers is ModifierKeys.None or ModifierKeys.Shift) return;
+        var modifiers = ToModifiers(Keyboard.Modifiers);
+        // 修飾なしの Esc は値にせず、画面の「キャンセル」（IsCancel）に渡す（V2.0.1）。
+        if (Shortcut.IsCancelKey(KeyInterop.VirtualKeyFromKey(key), modifiers)) return;
         e.Handled = true;
 
-        var modifiers = ToModifiers(Keyboard.Modifiers);
         if (modifiers == KeyModifiers.None && key is Key.Back or Key.Delete)
         {
             Shortcut = Shortcut.None;
