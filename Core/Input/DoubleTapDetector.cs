@@ -8,6 +8,35 @@ public sealed record DoubleTapTiming(uint MaxHoldMs, uint MaxGapMs)
 }
 
 /// <summary>
+/// 対象キーの「離し」の時点での判定結果（V2.1.1。診断ログの集計用。判定そのものには使わない）。
+/// </summary>
+public enum TapOutcome
+{
+    None,
+
+    /// <summary>有効な 1 回目のタップ。</summary>
+    FirstTap,
+
+    /// <summary>2 回目のタップでダブルタップが成立した。</summary>
+    Fired,
+
+    /// <summary>押した時点で他のキー・マウスボタンが押されていた。</summary>
+    OthersHeld,
+
+    /// <summary>押している間に他のキー・マウスボタン・ホイールの入力があった。</summary>
+    Interrupted,
+
+    /// <summary>押しっぱなし（キーリピート）。</summary>
+    KeyRepeat,
+
+    /// <summary>押していた時間が長すぎた。</summary>
+    TooLong,
+
+    /// <summary>押下を見ていない離し（押下がフックに届かなかった等）。</summary>
+    UpWithoutDown,
+}
+
+/// <summary>
 /// 1 つの修飾キー（左右の Shift・Ctrl。<see cref="DoubleTapKey"/>）の「単独タップ 2 回」を判定する状態機械。Win32 に依存しない（単体テスト対象）。
 /// 低レベルフックのスレッドから、すべてのキー・マウスボタン入力を時刻付きで順に渡す。処理は O(1) で重い処理はしない。
 ///
@@ -27,6 +56,7 @@ public sealed class DoubleTapDetector
 
     private bool _down;
     private bool _pressDirty;
+    private TapOutcome _dirtyReason;
     private uint _downTime;
     private bool _hasFirstTap;
     private uint _firstUpTime;
@@ -46,6 +76,9 @@ public sealed class DoubleTapDetector
     }
 
     public int TargetVk => _targetVk;
+
+    /// <summary>直近の対象キーの離しでの判定結果（V2.1.1。診断用）。</summary>
+    public TapOutcome LastOutcome { get; private set; }
 
     /// <summary>
     /// キー入力を 1 つ渡す。
@@ -70,12 +103,14 @@ public sealed class DoubleTapDetector
             {
                 // 押しっぱなしによるキーリピート。この押下は無効。
                 _pressDirty = true;
+                _dirtyReason = TapOutcome.KeyRepeat;
                 _hasFirstTap = false;
                 return false;
             }
             _down = true;
             _downTime = time;
             _pressDirty = othersHeld;
+            _dirtyReason = othersHeld ? TapOutcome.OthersHeld : TapOutcome.None;
             if (_hasFirstTap && Elapsed(_firstUpTime, time) > _timing.MaxGapMs) _hasFirstTap = false;
             return false;
         }
@@ -84,6 +119,7 @@ public sealed class DoubleTapDetector
         {
             // Down を見ていない Up（フック導入前から押されていた等）。数えない。
             _hasFirstTap = false;
+            LastOutcome = TapOutcome.UpWithoutDown;
             return false;
         }
         _down = false;
@@ -92,13 +128,16 @@ public sealed class DoubleTapDetector
         if (!validTap)
         {
             _hasFirstTap = false;
+            LastOutcome = _pressDirty ? (_dirtyReason == TapOutcome.None ? TapOutcome.Interrupted : _dirtyReason) : TapOutcome.TooLong;
             return false;
         }
         if (_hasFirstTap && Elapsed(_firstUpTime, _downTime) <= _timing.MaxGapMs)
         {
             _hasFirstTap = false;
+            LastOutcome = TapOutcome.Fired;
             return true;
         }
+        LastOutcome = TapOutcome.FirstTap;
         _hasFirstTap = true;
         _firstUpTime = time;
         return false;
@@ -107,7 +146,11 @@ public sealed class DoubleTapDetector
     /// <summary>対象キー以外の入力（他のキー、マウスボタン、ホイール、他アプリが合成した入力）。進行中の判定を取り消す。</summary>
     public void OnOtherInput()
     {
-        if (_down) _pressDirty = true;
+        if (_down)
+        {
+            _pressDirty = true;
+            if (_dirtyReason == TapOutcome.None) _dirtyReason = TapOutcome.Interrupted;
+        }
         _hasFirstTap = false;
     }
 
@@ -116,6 +159,7 @@ public sealed class DoubleTapDetector
     {
         _down = false;
         _pressDirty = false;
+        _dirtyReason = TapOutcome.None;
         _hasFirstTap = false;
     }
 

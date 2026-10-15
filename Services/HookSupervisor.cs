@@ -21,6 +21,9 @@ public sealed class HookSupervisor : IDisposable
 
     private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(5);
 
+    /// <summary>入力の種類・2 回押しの結果を確かめる間隔（V2.1.1）。記録中でキー入力があった分だけ書く。</summary>
+    private static readonly TimeSpan StatsInterval = TimeSpan.FromMinutes(1);
+
     private readonly KeyboardHook _hook;
     private readonly Dispatcher _dispatcher;
     private readonly Action<HookNotice, int> _notify;
@@ -42,13 +45,19 @@ public sealed class HookSupervisor : IDisposable
     private long _summaryKeyboard;
     private long _summaryMouse;
 
+    // 1 分ごとの集計の記録用（V2.1.1）。
+    private long _lastStats;
+    private long[] _prevStats;
+    private bool _onlyInjected;
+
     public HookSupervisor(KeyboardHook hook, Dispatcher dispatcher, Action<HookNotice, int> notify)
     {
         _hook = hook;
         _dispatcher = dispatcher;
         _notify = notify;
         _hook.Registered += OnRegistered;
-        _lastSummary = _lastFlush = Environment.TickCount64;
+        _lastSummary = _lastFlush = _lastStats = Environment.TickCount64;
+        _prevStats = hook.SnapshotStats();
         _timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += OnTick;
         _timer.Start();
@@ -92,6 +101,8 @@ public sealed class HookSupervisor : IDisposable
         var sb = new StringBuilder();
         sb.Append($"状態 ダブルタップ={(_tap ? "使う" : "使わない")} キーボード登録={(_hook.KeyboardInstalled ? "あり" : "なし")}");
         sb.Append($" 受信 キーボード={_hook.KeyboardCallbacks} マウス={_hook.MouseCallbacks} 例外={_hook.CallbackErrors}");
+        var stats = _hook.SnapshotStats();
+        sb.Append($" キーの内訳 実入力={stats[(int)HookStat.RealKeys]} 合成扱い={stats[(int)HookStat.InjectedKeys]} 2回押し成立={stats[(int)HookStat.Fired]}");
         sb.Append($" 最後の受信から={Elapsed(_hook.LastSeenTick)}ms 最後の入力から={Elapsed(LastSystemInput())}ms");
         var m = _controller.Monitor;
         sb.Append($" 未受信の疑い={m.Suspicions} 検知による再登録={m.Recoveries} 見送り={m.Deferrals} 連続失敗={_controller.Failures}");
@@ -133,6 +144,11 @@ public sealed class HookSupervisor : IDisposable
         LogCheckChange();
         LogFirstInput(now);
 
+        if (now - _lastStats >= StatsInterval.TotalMilliseconds)
+        {
+            _lastStats = now;
+            LogStats();
+        }
         if (now - _lastSummary >= SummaryInterval.TotalMilliseconds)
         {
             _lastSummary = now;
@@ -147,6 +163,25 @@ public sealed class HookSupervisor : IDisposable
             _lastFlush = now;
             DiagnosticLog.Flush();
         }
+    }
+
+    /// <summary>
+    /// 1 分ごと（V2.1.1）: 記録中でキー入力があれば、入力の種類（実入力・合成扱い）と 2 回押しの結果の件数を書く。
+    /// 記録中かどうかにかかわらず、「実際のキー入力が届かず、合成扱いのキー入力だけが届いている」状態になった・戻ったことは書く
+    /// （他のソフトのフックに先にキーを取られ、送り直された入力だけが届いている可能性。動作は変えない）。
+    /// </summary>
+    private void LogStats()
+    {
+        var stats = _hook.SnapshotStats();
+        var delta = HookStats.Delta(stats, _prevStats);
+        _prevStats = stats;
+        if (DiagnosticLog.Recording && HookStats.HasKeyActivity(delta)) DiagnosticLog.Add("1 分間 " + HookStats.Describe(delta));
+        var onlyInjected = _tap && HookStats.OnlyInjected(delta);
+        if (onlyInjected && !_onlyInjected)
+            DiagnosticLog.Add($"この 1 分間、実際のキー入力が届かず、合成扱いのキー入力だけが {delta[(int)HookStat.InjectedKeys]} 件届いた（他のソフトが先にキーを受け取って送り直している可能性）");
+        else if (!onlyInjected && _onlyInjected && delta[(int)HookStat.RealKeys] > 0)
+            DiagnosticLog.Add("実際のキー入力の到達を再び確認");
+        if (onlyInjected || delta[(int)HookStat.RealKeys] > 0) _onlyInjected = onlyInjected;
     }
 
     /// <summary>確認の結果が変わったときだけ記録する（毎回は書かない）。</summary>

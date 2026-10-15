@@ -82,6 +82,10 @@ public sealed class KeyboardHook : IDisposable
     private int _lastMouseTick;
     private int _registeredTick;
     private volatile bool _keyboardInstalled;
+    // 入力の種類・2 回押しの結果の集計（V2.1.1。HookStat の順。件数だけ）。
+    private readonly long[] _stats = new long[HookStats.Count];
+    // 各キーの最後の押下（キーリピートを含む）の時刻。押されたままの判定が古くないかを数えるため（フックのスレッドだけが触る）。
+    private readonly int[] _keyDownTick = new int[256];
 
     public KeyboardHook(Dispatcher dispatcher)
     {
@@ -111,6 +115,16 @@ public sealed class KeyboardHook : IDisposable
 
     /// <summary>コールバックの中で起きた例外の件数（入力全体へ影響させないため、コールバックでは握りつぶして数えるだけ）。</summary>
     public long CallbackErrors => Interlocked.Read(ref _callbackErrors);
+
+    /// <summary>入力の種類・2 回押しの結果の集計の写し（V2.1.1。<see cref="HookStat"/> の順。累計）。</summary>
+    public long[] SnapshotStats()
+    {
+        var copy = new long[_stats.Length];
+        for (var i = 0; i < copy.Length; i++) copy[i] = Interlocked.Read(ref _stats[i]);
+        return copy;
+    }
+
+    private void Count(HookStat stat) => Interlocked.Increment(ref _stats[(int)stat]);
 
     /// <summary>フックが最後に入力を受け取った時刻。登録後にまだ無ければ登録した時刻（GetTickCount 系）。</summary>
     public uint LastSeenTick
@@ -196,10 +210,12 @@ public sealed class KeyboardHook : IDisposable
         try
         {
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
-            foreach (var name in new[] { nameof(KeyboardProc), nameof(MouseProc), nameof(OnKeyboard), nameof(TryCapture), nameof(HeldModifiers), nameof(IsOwnForeground), nameof(AnyOtherInputHeld) })
+            foreach (var name in new[] { nameof(KeyboardProc), nameof(MouseProc), nameof(OnKeyboard), nameof(TryCapture), nameof(HeldModifiers), nameof(IsOwnForeground), nameof(OtherInputHeld), nameof(Count) })
                 RuntimeHelpers.PrepareMethod(typeof(KeyboardHook).GetMethod(name, flags)!.MethodHandle);
             foreach (var name in new[] { nameof(DoubleTapDetector.OnKey), nameof(DoubleTapDetector.OnOtherInput) })
                 RuntimeHelpers.PrepareMethod(typeof(DoubleTapDetector).GetMethod(name)!.MethodHandle);
+            foreach (var name in new[] { nameof(HookStats.FromHeld), nameof(HookStats.FromOutcome) })
+                RuntimeHelpers.PrepareMethod(typeof(HookStats).GetMethod(name)!.MethodHandle);
             Marshal.GetFunctionPointerForDelegate(_keyboardProc);
             Marshal.GetFunctionPointerForDelegate(_mouseProc);
             // P/Invoke の準備と、判定の処理を一通り通しておく（捨てる判定器で。入力は送らない）。
@@ -358,13 +374,20 @@ public sealed class KeyboardHook : IDisposable
     {
         var isDown = msg is WM_KEYDOWN or WM_SYSKEYDOWN;
         if (!isDown && msg is not (WM_KEYUP or WM_SYSKEYUP)) return false;
-        if (info->dwExtraInfo == InjectionSignature) return false; // PlainClip 自身の入力
-
         var vk = (int)(info->vkCode & 0xFF);
+        var injected = (info->flags & LLKHF_INJECTED) != 0;
+        if (info->dwExtraInfo == InjectionSignature)
+        {
+            Count(HookStat.OwnKeys);
+            return false; // PlainClip 自身の入力
+        }
+        Count(injected ? HookStat.InjectedKeys : HookStat.RealKeys);
+        if (isDown && vk == _tap.TargetVk) Count(injected ? HookStat.TargetInjectedDowns : HookStat.TargetRealDowns);
+
         if (_captureEnabled && TryCapture(vk, isDown)) return true;
         if (!_tapEnabled) return false;
 
-        if ((info->flags & LLKHF_INJECTED) != 0 && !AcceptInjected)
+        if (injected && !AcceptInjected)
         {
             // 他アプリが合成した入力: タップには数えないが、進行中の判定は取り消す。
             _tap.OnOtherInput();
@@ -372,9 +395,18 @@ public sealed class KeyboardHook : IDisposable
         }
 
         var extended = (info->flags & LLKHF_EXTENDED) != 0;
-        var othersHeld = isDown && vk == _tap.TargetVk && AnyOtherInputHeld(vk);
+        var othersHeld = false;
+        if (isDown && vk == _tap.TargetVk)
+        {
+            var held = OtherInputHeld(vk);
+            othersHeld = held != HeldInput.None;
+            if (HookStats.FromHeld(held) is { } heldStat) Count(heldStat);
+        }
         _keyDown[vk] = isDown;
-        if (_tap.OnKey(vk, isDown, extended, info->time, othersHeld))
+        if (isDown) _keyDownTick[vk] = Environment.TickCount;
+        var fired = _tap.OnKey(vk, isDown, extended, info->time, othersHeld);
+        if (!isDown && vk == _tap.TargetVk && HookStats.FromOutcome(_tap.LastOutcome) is { } outcome) Count(outcome);
+        if (fired)
         {
             var foreground = GetForegroundWindow();
             _dispatcher.BeginInvoke(DispatcherPriority.Input, () => DoubleTapped?.Invoke(foreground));
@@ -432,19 +464,32 @@ public sealed class KeyboardHook : IDisposable
         SendInput(2, inputs, Marshal.SizeOf<INPUT>());
     }
 
-    /// <summary>対象キー以外のキー・マウスボタンが押されているか（対象キーの押下時だけ呼ぶ）。</summary>
-    private bool AnyOtherInputHeld(int targetVk)
+    /// <summary>
+    /// 対象キー以外のキー・マウスボタンが押されているか（対象キーの押下時だけ呼ぶ）。判定は V2.1.0 と同じで、
+    /// どれか 1 つでも押されていれば押されている。V2.1.1 から、押されているキーが古い（キーリピートが 2 秒以上届いていない）かを区別して返す（診断用）。
+    /// </summary>
+    private HeldInput OtherInputHeld(int targetVk)
     {
+        var now = Environment.TickCount;
+        var stale = false;
         for (var vk = 0; vk < _keyDown.Length; vk++)
         {
             if (!_keyDown[vk] || vk == targetVk) continue;
             // フックが Up を取りこぼした（ロック画面・UAC など）値は実際の状態で確かめて捨てる。
-            if (GetAsyncKeyState(vk) < 0) return true;
+            if (GetAsyncKeyState(vk) < 0)
+            {
+                if (now - _keyDownTick[vk] <= HookStats.StaleHeldMs) return HeldInput.Key;
+                stale = true;
+                continue;
+            }
             _keyDown[vk] = false;
         }
+        if (stale) return HeldInput.StaleKey;
         // 1:左 2:右 4:中 5,6:X ボタン
         return GetAsyncKeyState(0x01) < 0 || GetAsyncKeyState(0x02) < 0 || GetAsyncKeyState(0x04) < 0 ||
-               GetAsyncKeyState(0x05) < 0 || GetAsyncKeyState(0x06) < 0;
+               GetAsyncKeyState(0x05) < 0 || GetAsyncKeyState(0x06) < 0
+            ? HeldInput.MouseButton
+            : HeldInput.None;
     }
 
     private unsafe IntPtr MouseProc(int nCode, IntPtr wParam, IntPtr lParam)
@@ -456,6 +501,8 @@ public sealed class KeyboardHook : IDisposable
             try
             {
                 var msg = (int)wParam;
+                var mouse = (MSLLHOOKSTRUCT*)lParam;
+                if ((mouse->flags & LLMHF_INJECTED) != 0 && mouse->dwExtraInfo != InjectionSignature) Count(HookStat.InjectedMouse);
                 // 移動は無視（何もしないで次へ渡す）。ボタンの押下とホイールだけ「他の入力」として扱う。
                 if (msg is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN or WM_XBUTTONDOWN or WM_MOUSEWHEEL or WM_MOUSEHWHEEL &&
                     ((MSLLHOOKSTRUCT*)lParam)->dwExtraInfo != InjectionSignature)
