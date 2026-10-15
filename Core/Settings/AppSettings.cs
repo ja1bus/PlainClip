@@ -49,6 +49,12 @@ public sealed class AppSettings
     /// <summary>表示言語（V2.0.0）。"" = Windows の表示言語に合わせる / "en" / "ja"。変更は再起動後に反映する。</summary>
     public string Language { get; set; } = "";
 
+    /// <summary>
+    /// サポート用の診断ログを記録する期限（V2.1.0。UTC。null = 記録しない（既定））。設定画面のバージョン表示を Ctrl+Shift+クリックして有効にする。
+    /// 期限を過ぎたら自動で止める（<see cref="Diagnostics.DiagnosticMode"/>）。
+    /// </summary>
+    public DateTime? DiagnosticLogUntil { get; set; }
+
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
 
     [JsonIgnore]

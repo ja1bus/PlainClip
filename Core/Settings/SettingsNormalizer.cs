@@ -61,6 +61,13 @@ public static class SettingsNormalizer
             s.Language = language;
         }
 
+        // 期限切れ・不自然な期限の診断ログは止める（V2.1.0）。
+        if (s.DiagnosticLogUntil is { } until && !Diagnostics.DiagnosticMode.IsActive(until.ToUniversalTime(), DateTime.UtcNow))
+        {
+            fixes.Add($"DiagnosticLogUntil={until:o} → (none)");
+            s.DiagnosticLogUntil = null;
+        }
+
         var count = Math.Clamp(s.MaxHistoryCount, ClipHistory.MinMaxCount, ClipHistory.MaxMaxCount);
         if (count != s.MaxHistoryCount)
         {

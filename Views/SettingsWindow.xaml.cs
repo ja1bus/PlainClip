@@ -43,6 +43,20 @@ public interface ISettingsHost
 
     /// <summary>保存した表示言語が今と違えば再起動を尋ね、再起動するなら true（この画面も閉じられる）。</summary>
     bool OfferRestartIfLanguageChanged(Window owner);
+
+    /// <summary>診断ログを記録中なら期限（UTC）。記録していなければ null（V2.1.0）。</summary>
+    DateTime? DiagnosticLogUntil { get; }
+
+    /// <summary>診断ログの実際の保存先。</summary>
+    string DiagnosticLogFolder { get; }
+
+    /// <summary>診断ログの記録を始める・止める。設定の保存に失敗したらメッセージを返す。</summary>
+    string? SetDiagnosticLog(bool enable);
+
+    /// <summary>保存先をエクスプローラーで開く。開けなければ理由を返す。</summary>
+    string? OpenDiagnosticLogFolder();
+
+    event EventHandler? DiagnosticLogChanged;
 }
 
 /// <summary>
@@ -103,13 +117,56 @@ public partial class SettingsWindow : Window
 
         _host.HotkeyStatusChanged += OnHotkeyStatusChanged;
         _host.ShortcutCaptured += OnShortcutCaptured;
+        _host.DiagnosticLogChanged += OnDiagnosticLogChanged;
+        VersionText.MouseLeftButtonUp += OnVersionClicked;
+        UpdateDiagnostics();
         Closed += (_, _) =>
         {
             // 入力欄にフォーカスがあるまま閉じても、ショートカットの一時解除とキーの横取りを必ず戻す。
             EndInput();
             _host.HotkeyStatusChanged -= OnHotkeyStatusChanged;
             _host.ShortcutCaptured -= OnShortcutCaptured;
+            _host.DiagnosticLogChanged -= OnDiagnosticLogChanged;
         };
+    }
+
+    // --- 診断ログ（V2.1.0。サポート用。バージョン表示の Ctrl+Shift+クリックで始める。PROJECT.md「診断ログ」） ---
+
+    private void OnVersionClicked(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        const System.Windows.Input.ModifierKeys both = System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift;
+        if (System.Windows.Input.Keyboard.Modifiers != both || _host.DiagnosticLogUntil is not null) return;
+        var message = string.Format(Strings.DiagnosticsConfirmFormat, (int)Core.Diagnostics.DiagnosticMode.Duration.TotalDays,
+            Path.Combine(_host.DiagnosticLogFolder, DiagnosticLog.FileName));
+        if (MessageBox.Show(this, message, "PlainClip", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+        ShowError(_host.SetDiagnosticLog(true));
+    }
+
+    private void OnStopDiagnostics(object sender, RoutedEventArgs e) => ShowError(_host.SetDiagnosticLog(false));
+
+    private void OnOpenDiagnostics(object sender, RoutedEventArgs e)
+    {
+        if (_host.OpenDiagnosticLogFolder() is not { } problem) return;
+        MessageBox.Show(this, string.Format(Strings.DiagnosticsOpenFailedFormat, _host.DiagnosticLogFolder, problem),
+            "PlainClip", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    private void OnDiagnosticLogChanged(object? sender, EventArgs e) => UpdateDiagnostics();
+
+    /// <summary>記録中だけ、期限・保存先と「保存先を開く」「記録をやめる」を表示する（普段は何も表示しない）。</summary>
+    private void UpdateDiagnostics()
+    {
+        if (_host.DiagnosticLogUntil is { } until)
+        {
+            DiagnosticsText.Text = string.Format(Strings.DiagnosticsActiveFormat, until.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)) +
+                                   Environment.NewLine + _host.DiagnosticLogFolder;
+            DiagnosticsPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            DiagnosticsPanel.Visibility = Visibility.Collapsed;
+        }
     }
 
     /// <summary>コンボボックスの選択肢（値と表示名）。</summary>

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Interop;
+using PlainClip.Core.Diagnostics;
 using PlainClip.Core.History;
 using PlainClip.Core.Input;
 using PlainClip.Core.Localization;
@@ -34,6 +35,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
     private ClipboardService? _clipboard;
     private PasteService? _paste;
     private KeyboardHook? _hook;
+    private HookSupervisor? _hookSupervisor;
+    private System.Windows.Threading.DispatcherTimer? _diagnosticsTimer;
     private GlobalHotkeyService? _hotkeys;
     private TrayService? _tray;
     private HistoryWindow? _historyWindow;
@@ -70,6 +73,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _uiCulture = UiLanguage.Resolve(_settings.Language, _windowsUiCulture);
         UiLanguage.Apply(_uiCulture);
         foreach (var fix in load.Fixes) ErrorLog.Write("設定値を補正: " + fix);
+        DiagnosticLog.Add($"起動 v{AppVersion} Store版={PackageInfo.IsPackaged} OS={Environment.OSVersion.Version} " +
+                          $"Windows の起動から={Environment.TickCount64 / 1000}s 設定={_settings.PasteLatestTrigger}/{_settings.DoubleTapKey}");
         _history.MaxCount = _settings.MaxHistoryCount;
         _history.MergeDuplicates = _settings.MergeDuplicates;
         _history.Changed += (_, _) => OnHistoryChanged();
@@ -79,6 +84,7 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _tray.ClearRequested += (_, _) => _history.Clear();
         _tray.GuideRequested += (_, _) => ShowGuide();
         _tray.SettingsRequested += (_, _) => ShowSettings();
+        _tray.ResetKeyMonitorRequested += (_, _) => _hookSupervisor?.ResetManually();
         _tray.ExitRequested += (_, _) => Exit();
 
         _clipboard = new ClipboardService(_app.Dispatcher);
@@ -99,7 +105,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _hook = new KeyboardHook(_app.Dispatcher);
         _hook.DoubleTapped += foreground => _ = PasteCurrentAsync(foreground);
         _hook.ShortcutCaptured += shortcut => ShortcutCaptured?.Invoke(shortcut);
-        _hook.HookFailed += error => _tray?.ShowBalloon("PlainClip", string.Format(Strings.HookFailedFormat, error), warning: true);
+        // 登録失敗の再試行・無通知で外されたときの回復（V2.1.0）。再試行しても登録できなければ案内する。
+        _hookSupervisor = new HookSupervisor(_hook, _app.Dispatcher, OnHookNotice);
 
         _hotkeys = new GlobalHotkeyService();
         _hotkeys.Pressed += OnHotkeyPressed;
@@ -107,7 +114,9 @@ public sealed class AppHost : ISettingsHost, IDisposable
 
         AutoStartService.RefreshPathIfMissing();
         ApplyTriggers();
+        _hookSupervisor.Started();
         OnHistoryChanged();
+        StartDiagnosticsIfActive(load.Fixes.Any(f => f.StartsWith(nameof(AppSettings.DiagnosticLogUntil), StringComparison.Ordinal)));
 
         if (load.Status == SettingsLoadStatus.Missing)
         {
@@ -392,23 +401,129 @@ public sealed class AppHost : ISettingsHost, IDisposable
     public void BeginShortcutInput()
     {
         _hotkeys?.Suspend();
-        _hook?.SetCapture(true);
+        _hookSupervisor?.SetCapture(true);
     }
 
     public void EndShortcutInput()
     {
-        _hook?.SetCapture(false);
+        _hookSupervisor?.SetCapture(false);
         _hotkeys?.Resume();
     }
 
     /// <summary>呼び出し方法を反映する: ダブルタップはフック、ショートカットは RegisterHotKey（旧解除 → 新登録）。</summary>
     private void ApplyTriggers()
     {
-        _hook?.SetDoubleTap(_settings.PasteLatestTrigger == TriggerMode.DoubleTap, _settings.DoubleTapKey);
+        var tap = _settings.PasteLatestTrigger == TriggerMode.DoubleTap;
+        _hookSupervisor?.SetDoubleTap(tap, _settings.DoubleTapKey);
+        _tray?.SetKeyMonitorAvailable(tap);
         _hotkeys?.Apply(
             _settings.PasteLatestTrigger == TriggerMode.Shortcut ? _settings.PasteLatestShortcutValue : Shortcut.None,
             _settings.ShowHistoryTrigger == TriggerMode.Shortcut ? _settings.ShowHistoryShortcutValue : Shortcut.None,
             _settings.NumberPasteModifiersValue);
+    }
+
+    /// <summary>キー監視の回復の結果を知らせる（V2.1.0）。</summary>
+    private void OnHookNotice(HookNotice notice, int error)
+    {
+        if (notice == HookNotice.ManualDone) NoticeWindow.Display(Strings.NoticeKeyMonitorReset);
+        else if (notice == HookNotice.Failed) _tray?.ShowBalloon("PlainClip", string.Format(Strings.HookFailedFormat, error), warning: true);
+    }
+
+    // --- 診断ログ（V2.1.0。PROJECT.md「診断ログ」） ---
+
+    private static string AppVersion => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+
+    public DateTime? DiagnosticLogUntil => DiagnosticMode.IsActive(_settings.DiagnosticLogUntil, DateTime.UtcNow) ? _settings.DiagnosticLogUntil : null;
+
+    public string DiagnosticLogFolder => DiagnosticLog.Folder;
+
+    public event EventHandler? DiagnosticLogChanged;
+
+    /// <summary>起動時: 記録の期間中なら記録を続ける。期限切れで止めた（設定を補正した）なら保存し直す。</summary>
+    private void StartDiagnosticsIfActive(bool expiredAtLoad)
+    {
+        if (expiredAtLoad) SaveSettingsQuietly();
+        if (DiagnosticLogUntil is not null) DiagnosticLog.Start(DiagnosticHeader());
+        // 期限の確認（10 分ごと）。止め忘れても 7 日で止まる。
+        _diagnosticsTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, _app.Dispatcher)
+        {
+            Interval = TimeSpan.FromMinutes(10),
+        };
+        _diagnosticsTimer.Tick += (_, _) =>
+        {
+            if (DiagnosticLog.Recording && DiagnosticLogUntil is null) SetDiagnosticLog(false, "期限切れ");
+        };
+        _diagnosticsTimer.Start();
+    }
+
+    /// <summary>診断ログの記録を始める・止める。設定の保存に失敗したらメッセージを返す（記録の開始・停止自体は行う）。</summary>
+    public string? SetDiagnosticLog(bool enable) => SetDiagnosticLog(enable, "利用者の操作");
+
+    private string? SetDiagnosticLog(bool enable, string reason)
+    {
+        if (enable)
+        {
+            _settings.DiagnosticLogUntil = DiagnosticMode.NewUntil(DateTime.UtcNow);
+            DiagnosticLog.Start(DiagnosticHeader());
+        }
+        else
+        {
+            _settings.DiagnosticLogUntil = null;
+            if (DiagnosticLog.Recording) DiagnosticLog.Stop(reason);
+        }
+        var error = SaveSettingsQuietly();
+        DiagnosticLogChanged?.Invoke(this, EventArgs.Empty);
+        return error is null ? null : string.Format(Strings.SettingsSaveFailedFormat, _store.FilePath, error);
+    }
+
+    /// <summary>診断ログの見出し（版・環境・今の状態。本文・入力・ウィンドウ名・パスは含めない）。</summary>
+    private IEnumerable<string> DiagnosticHeader()
+    {
+        var now = DateTime.Now;
+        yield return "==== PlainClip 診断ログ ====";
+        yield return $"記録開始 {now:yyyy-MM-dd HH:mm:ss}（期限 {_settings.DiagnosticLogUntil?.ToLocalTime():yyyy-MM-dd HH:mm}）";
+#if MSIX
+        const string build = "Store 用（MSIX）";
+#else
+        const string build = "通常";
+#endif
+        yield return $"PlainClip v{AppVersion} ビルド={build} Store版として実行={PackageInfo.IsPackaged} .NET={Environment.Version} OS={Environment.OSVersion.Version} 64bit={Environment.Is64BitProcess}";
+        yield return $"表示言語={_uiCulture.Name} 貼り付けの呼び出し={_settings.PasteLatestTrigger} キー={_settings.DoubleTapKey} 自動起動={AutoStartService.IsEnabled()}";
+        yield return $"Windows の起動から={Environment.TickCount64 / 1000}s PlainClip の起動から={(int)(now - Process.GetCurrentProcess().StartTime).TotalSeconds}s";
+        if (_hookSupervisor is not null) yield return _hookSupervisor.DescribeState();
+    }
+
+    /// <summary>設定を保存する。失敗したら理由を返す。</summary>
+    private string? SaveSettingsQuietly()
+    {
+        try
+        {
+            _store.Save(_settings);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ErrorLog.Write($"設定の保存に失敗: {_store.FilePath}", ex);
+            return ex.Message;
+        }
+    }
+
+    /// <summary>保存先をエクスプローラーで開く（ファイルがあれば選んだ状態で）。開けなければ理由を返す。</summary>
+    public string? OpenDiagnosticLogFolder()
+    {
+        try
+        {
+            DiagnosticLog.Flush();
+            Directory.CreateDirectory(DiagnosticLog.Folder);
+            var args = File.Exists(DiagnosticLog.FilePath) ? $"/select,\"{DiagnosticLog.FilePath}\"" : $"\"{DiagnosticLog.Folder}\"";
+            Process.Start(new ProcessStartInfo("explorer.exe", args) { UseShellExecute = false })?.Dispose();
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ErrorLog.Write($"診断ログの保存先を開けませんでした: {DiagnosticLog.Folder}", ex);
+            return ex.Message;
+        }
     }
 
     private string DescribeShowHistoryTrigger() =>
@@ -476,9 +591,13 @@ public sealed class AppHost : ISettingsHost, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        // フックとショートカットを最初に確実に解除する。
+        // 回復の予約・購読を止めてから、フックとショートカットを確実に解除する。
+        DiagnosticLog.Add("終了");
+        _diagnosticsTimer?.Stop();
+        _hookSupervisor?.Dispose();
         _hook?.Dispose();
         _hotkeys?.Dispose();
+        DiagnosticLog.Flush();
         _clipboard?.Dispose();
         NoticeWindow.CloseCurrent();
         _guideWindow?.Close();

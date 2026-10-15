@@ -5,13 +5,14 @@ namespace PlainClip.Services;
 
 /// <summary>
 /// タスクトレイのアイコンとメニュー。WinForms の NotifyIcon を使う（WindowsDesktop 共有フレームワーク内）。
-/// メニュー: 履歴を表示 / 履歴をクリア / 使い方 / 設定 / 終了。アイコンのクリックでも履歴を表示する。
+/// メニュー: 履歴を表示 / 履歴をクリア / 使い方 / 設定 / キー監視を再設定（V2.1.0。ダブルタップを使うときだけ押せる） / 終了。アイコンのクリックでも履歴を表示する。
 /// </summary>
 public sealed class TrayService : IDisposable
 {
     private readonly NotifyIcon _icon;
     private readonly System.Drawing.Icon? _ownedIcon;
     private readonly ToolStripMenuItem _showItem;
+    private readonly ToolStripMenuItem _resetItem;
 
     public TrayService()
     {
@@ -26,6 +27,9 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem(Strings.TrayGuide, null, (_, _) => GuideRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new ToolStripMenuItem(Strings.TraySettings, null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty)));
+        // キーを 2 回押す貼り付けが反応しないときの回復（アプリを再起動せず、履歴も消さない）。
+        _resetItem = new ToolStripMenuItem(Strings.TrayResetKeyMonitor, null, (_, _) => ResetKeyMonitorRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(_resetItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem(Strings.TrayExit, null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty)));
 
@@ -46,6 +50,7 @@ public sealed class TrayService : IDisposable
     public event EventHandler? ClearRequested;
     public event EventHandler? GuideRequested;
     public event EventHandler? SettingsRequested;
+    public event EventHandler? ResetKeyMonitorRequested;
     public event EventHandler? ExitRequested;
 
     /// <summary>ツールチップとメニューに現在の呼び出し方法と件数を表示する。</summary>
@@ -55,6 +60,9 @@ public sealed class TrayService : IDisposable
         var tip = string.Format(Strings.TrayTooltipFormat, count);
         _icon.Text = tip.Length > 127 ? tip[..127] : tip; // NotifyIcon.Text は 127 文字まで
     }
+
+    /// <summary>「キー監視を再設定」を押せるか（ダブルタップを使う設定のときだけ）。</summary>
+    public void SetKeyMonitorAvailable(bool available) => _resetItem.Enabled = available;
 
     public void ShowBalloon(string title, string text, bool warning)
     {
