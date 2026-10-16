@@ -42,7 +42,7 @@ PlainClip（Microsoft Store での表示名は Plain Clip）は、Windows 11 向
 
 詳しい使い方は取扱説明書をご覧ください。
 
-- 取扱説明書: https://www.iwanaga.net/plainclip/manual/
+- 取扱説明書: https://www.ja1bus.com/plainclip/manual/
 
 ## ビルド方法
 
@@ -101,8 +101,8 @@ Copyright (c) 2026 ja1bus（© ja1bus）
 
 ## 関連リンク
 
-- Web ページ: https://www.iwanaga.net/plainclip/
-- 取扱説明書: https://www.iwanaga.net/plainclip/manual/
-- プライバシーポリシー: https://www.iwanaga.net/plainclip/privacy/
+- Web ページ: https://www.ja1bus.com/plainclip/
+- 取扱説明書: https://www.ja1bus.com/plainclip/manual/
+- プライバシーポリシー: https://www.ja1bus.com/plainclip/privacy/
 - Microsoft Store: https://apps.microsoft.com/detail/9MVCBZVNBJW2
-- お問い合わせ: support@iwanaga.net
+- お問い合わせ: contact@ja1bus.com

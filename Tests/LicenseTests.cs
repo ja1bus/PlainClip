@@ -35,8 +35,8 @@ public class LicenseTests
     public void Links_point_to_the_plainclip_pages()
     {
         Assert.Equal("https://github.com/ja1bus/PlainClip", AppLinks.Repository);
-        Assert.Equal("https://www.iwanaga.net/plainclip/privacy/", AppLinks.Privacy);
-        Assert.Equal("https://www.iwanaga.net/plainclip/", AppLinks.WebsiteFor(System.Globalization.CultureInfo.GetCultureInfo("ja-JP")));
-        Assert.Equal("https://www.iwanaga.net/plainclip/en/", AppLinks.WebsiteFor(System.Globalization.CultureInfo.GetCultureInfo("en-US")));
+        Assert.Equal("https://www.ja1bus.com/plainclip/privacy/", AppLinks.Privacy);
+        Assert.Equal("https://www.ja1bus.com/plainclip/", AppLinks.WebsiteFor(System.Globalization.CultureInfo.GetCultureInfo("ja-JP")));
+        Assert.Equal("https://www.ja1bus.com/plainclip/en/", AppLinks.WebsiteFor(System.Globalization.CultureInfo.GetCultureInfo("en-US")));
     }
 }

@@ -42,7 +42,7 @@ This GitHub repository does not distribute executable files (binaries).
 
 For details, see the user manual.
 
-- User manual: https://www.iwanaga.net/plainclip/en/manual/
+- User manual: https://www.ja1bus.com/plainclip/en/manual/
 
 ## Building
 
@@ -101,8 +101,8 @@ This software is provided "as is", without warranty of any kind, express or impl
 
 ## Links
 
-- Website: https://www.iwanaga.net/plainclip/en/
-- User manual: https://www.iwanaga.net/plainclip/en/manual/
-- Privacy policy: https://www.iwanaga.net/plainclip/en/privacy/
+- Website: https://www.ja1bus.com/plainclip/en/
+- User manual: https://www.ja1bus.com/plainclip/en/manual/
+- Privacy policy: https://www.ja1bus.com/plainclip/en/privacy/
 - Microsoft Store: https://apps.microsoft.com/detail/9MVCBZVNBJW2
-- Contact: support@iwanaga.net
+- Contact: contact@ja1bus.com

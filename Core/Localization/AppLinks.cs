@@ -7,12 +7,12 @@ namespace PlainClip.Core.Localization;
 public static class AppLinks
 {
     /// <summary>紹介ページ（日本語。英語は /plainclip/en/ の予定）。</summary>
-    public const string Website = "https://www.iwanaga.net/plainclip/";
+    public const string Website = "https://www.ja1bus.com/plainclip/";
 
-    public const string WebsiteEnglish = "https://www.iwanaga.net/plainclip/en/";
+    public const string WebsiteEnglish = "https://www.ja1bus.com/plainclip/en/";
 
     /// <summary>プライバシーポリシー（Microsoft Store の申請にも使う）。</summary>
-    public const string Privacy = "https://www.iwanaga.net/plainclip/privacy/";
+    public const string Privacy = "https://www.ja1bus.com/plainclip/privacy/";
 
     /// <summary>ソースを MIT License で公開する公開リポジトリ（設定画面の「ソースコード」）。</summary>
     public const string Repository = "https://github.com/ja1bus/PlainClip";
