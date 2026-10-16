@@ -49,8 +49,8 @@ public enum HookStat
     HeldKey,
 
     /// <summary>
-    /// 押した時点で「押されている」と判定した他のキーのうち、2 秒以上新しい押下（キーリピート）が届いていないもの。
-    /// 離しが届かず、押されたままと誤って判定している可能性がある。
+    /// 押した時点で押下の記録が残っていた他のキーのうち、2 秒以上新しい押下（キーリピート）が届いていないもの。
+    /// 離しが届かず、押されたままと誤って判定している可能性がある。V2.1.3 から押されていないとみなし、記録を消す（2 回押しを妨げない）。
     /// </summary>
     HeldStaleKey,
 
@@ -58,11 +58,17 @@ public enum HookStat
     HeldMouseButton,
 }
 
-/// <summary>2 回押しのキーの押下時に「他の入力が押されている」と判定した理由（V2.1.1。判定は V2.1.0 と同じ）。</summary>
+/// <summary>2 回押しのキーの押下時に見つけた「押されている」他の入力（V2.1.1）。</summary>
 public enum HeldInput
 {
     None,
     Key,
+
+    /// <summary>
+    /// 古いキーだけが見つかった。V2.1.3 から 2 回押しを妨げない（<see cref="HookStats.Blocks"/>）。
+    /// 実際に押し続けているキーはキーリピートが届き続けるので古くならない。
+    /// 離しが他のソフトなどで失われ、Windows のキーの状態も押されたままになることがある（V2.1.1 の診断ログ、2026-10-16）。
+    /// </summary>
     StaleKey,
     MouseButton,
 }
@@ -72,8 +78,14 @@ public static class HookStats
 {
     public static readonly int Count = Enum.GetValues<HookStat>().Length;
 
-    /// <summary>キーリピートが止まってからこの時間を過ぎて「押されている」キーは、古い（離しが届いていない）可能性がある。</summary>
+    /// <summary>キーリピートが止まってからこの時間を過ぎて「押されている」キーは、古い（離しが届いていない）とみなす。</summary>
     public const int StaleHeldMs = 2000;
+
+    /// <summary>押されているキー（押下の記録と Windows のキーの状態の両方で押下中）が古いか。</summary>
+    public static bool IsStale(int nowTick, int lastDownTick) => unchecked(nowTick - lastDownTick) > StaleHeldMs;
+
+    /// <summary>2 回押しを妨げるか（V2.1.3: 古いキーだけなら妨げない）。</summary>
+    public static bool Blocks(HeldInput held) => held is HeldInput.Key or HeldInput.MouseButton;
 
     /// <summary>1 分間に実際のキー入力が 0 件で、合成扱いのキー入力がこの件数以上なら「合成扱いだけが届いている」とみなす。</summary>
     public const int OnlyInjectedThreshold = 10;
@@ -122,7 +134,8 @@ public static class HookStats
                $" / 成立={V(HookStat.Fired)} 1回目={V(HookStat.FirstTaps)}" +
                $" 不成立(他の入力が押下中={V(HookStat.RejectedOthersHeld)} 途中で他の入力={V(HookStat.RejectedInterrupted)}" +
                $" 押しっぱなし={V(HookStat.RejectedKeyRepeat)} 長押し={V(HookStat.RejectedTooLong)} 押下なしの離し={V(HookStat.UpWithoutDown)})" +
-               $" / 押下中と判定 キー={V(HookStat.HeldKey)} 古いキー={V(HookStat.HeldStaleKey)} マウスボタン={V(HookStat.HeldMouseButton)}" +
+               $" / 押下中と判定 キー={V(HookStat.HeldKey)} マウスボタン={V(HookStat.HeldMouseButton)}" +
+               $" / 押下の記録を消した 古いキー={V(HookStat.HeldStaleKey)}" +
                $" / マウス合成扱い={V(HookStat.InjectedMouse)}";
     }
 }

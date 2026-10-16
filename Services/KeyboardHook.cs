@@ -214,7 +214,7 @@ public sealed class KeyboardHook : IDisposable
                 RuntimeHelpers.PrepareMethod(typeof(KeyboardHook).GetMethod(name, flags)!.MethodHandle);
             foreach (var name in new[] { nameof(DoubleTapDetector.OnKey), nameof(DoubleTapDetector.OnOtherInput) })
                 RuntimeHelpers.PrepareMethod(typeof(DoubleTapDetector).GetMethod(name)!.MethodHandle);
-            foreach (var name in new[] { nameof(HookStats.FromHeld), nameof(HookStats.FromOutcome) })
+            foreach (var name in new[] { nameof(HookStats.FromHeld), nameof(HookStats.FromOutcome), nameof(HookStats.IsStale), nameof(HookStats.Blocks) })
                 RuntimeHelpers.PrepareMethod(typeof(HookStats).GetMethod(name)!.MethodHandle);
             Marshal.GetFunctionPointerForDelegate(_keyboardProc);
             Marshal.GetFunctionPointerForDelegate(_mouseProc);
@@ -399,7 +399,7 @@ public sealed class KeyboardHook : IDisposable
         if (isDown && vk == _tap.TargetVk)
         {
             var held = OtherInputHeld(vk);
-            othersHeld = held != HeldInput.None;
+            othersHeld = HookStats.Blocks(held);
             if (HookStats.FromHeld(held) is { } heldStat) Count(heldStat);
         }
         _keyDown[vk] = isDown;
@@ -465,8 +465,9 @@ public sealed class KeyboardHook : IDisposable
     }
 
     /// <summary>
-    /// 対象キー以外のキー・マウスボタンが押されているか（対象キーの押下時だけ呼ぶ）。判定は V2.1.0 と同じで、
-    /// どれか 1 つでも押されていれば押されている。V2.1.1 から、押されているキーが古い（キーリピートが 2 秒以上届いていない）かを区別して返す（診断用）。
+    /// 対象キー以外のキー・マウスボタンが押されているか（対象キーの押下時だけ呼ぶ）。2 回押しを妨げるかは <see cref="HookStats.Blocks"/>。
+    /// V2.1.3: 押下の記録があり Windows のキーの状態でも押されているキーでも、キーリピートが 2 秒以上届いていない（古い）ものは
+    /// 離しが失われたとみなして記録を消し、押されていない扱いにする。古いキーだけなら <see cref="HeldInput.StaleKey"/>（診断用）を返す。
     /// </summary>
     private HeldInput OtherInputHeld(int targetVk)
     {
@@ -478,18 +479,17 @@ public sealed class KeyboardHook : IDisposable
             // フックが Up を取りこぼした（ロック画面・UAC など）値は実際の状態で確かめて捨てる。
             if (GetAsyncKeyState(vk) < 0)
             {
-                if (now - _keyDownTick[vk] <= HookStats.StaleHeldMs) return HeldInput.Key;
+                if (!HookStats.IsStale(now, _keyDownTick[vk])) return HeldInput.Key;
+                // 他のソフトが離しを失わせると、Windows のキーの状態も押されたままになる（V2.1.1 の診断ログ）。
                 stale = true;
-                continue;
             }
             _keyDown[vk] = false;
         }
-        if (stale) return HeldInput.StaleKey;
         // 1:左 2:右 4:中 5,6:X ボタン
-        return GetAsyncKeyState(0x01) < 0 || GetAsyncKeyState(0x02) < 0 || GetAsyncKeyState(0x04) < 0 ||
-               GetAsyncKeyState(0x05) < 0 || GetAsyncKeyState(0x06) < 0
-            ? HeldInput.MouseButton
-            : HeldInput.None;
+        if (GetAsyncKeyState(0x01) < 0 || GetAsyncKeyState(0x02) < 0 || GetAsyncKeyState(0x04) < 0 ||
+            GetAsyncKeyState(0x05) < 0 || GetAsyncKeyState(0x06) < 0)
+            return HeldInput.MouseButton;
+        return stale ? HeldInput.StaleKey : HeldInput.None;
     }
 
     private unsafe IntPtr MouseProc(int nCode, IntPtr wParam, IntPtr lParam)
