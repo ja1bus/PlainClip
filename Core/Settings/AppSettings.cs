@@ -68,4 +68,23 @@ public sealed class AppSettings
     [JsonIgnore]
     public KeyModifiers NumberPasteModifiersValue =>
         NumberPaste.TryParse(NumberPasteModifiers, out var m) ? m : KeyModifiers.None;
+
+    /// <summary>
+    /// 設定画面で選べる項目がすべて同じか（V2.2.0。変更が無ければ［適用］を押せなくする）。
+    /// ショートカット・数字ショートカット・表示言語は解釈した値で比べ、書き方の違いと使えない値（保存時に空欄になる）は区別しない。
+    /// 設定画面で選ばない項目（診断ログの期限）と自動起動（設定ファイルの外）は比べない。
+    /// </summary>
+    public bool SameChoicesAs(AppSettings other) =>
+        PasteLatestTrigger == other.PasteLatestTrigger
+        && DoubleTapKey == other.DoubleTapKey
+        && ShowHistoryTrigger == other.ShowHistoryTrigger
+        && Usable(PasteLatestShortcutValue) == Usable(other.PasteLatestShortcutValue)
+        && Usable(ShowHistoryShortcutValue) == Usable(other.ShowHistoryShortcutValue)
+        && NumberPasteModifiersValue == other.NumberPasteModifiersValue
+        && MaxHistoryCount == other.MaxHistoryCount
+        && MergeDuplicates == other.MergeDuplicates
+        && Localization.UiLanguage.Normalize(Language) == Localization.UiLanguage.Normalize(other.Language);
+
+    private static Shortcut Usable(Shortcut shortcut) =>
+        shortcut.Validate() == ShortcutValidation.Ok ? shortcut : Shortcut.None;
 }

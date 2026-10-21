@@ -86,15 +86,6 @@ public sealed class HookSupervisor : IDisposable
     /// <summary>起動が終わった（起動後の予防の再登録を予約する）。</summary>
     public void Started() => _controller.Started(Environment.TickCount64);
 
-    /// <summary>トレイの「キー監視を再設定」。監視を使わない設定なら false。結果は通知（<see cref="HookNotice"/>）で返す。</summary>
-    public bool ResetManually()
-    {
-        if (_disposed || _controller.Manual() is not { } request) return false;
-        DiagnosticLog.Add("手動の再設定を依頼");
-        _hook.Refresh(request.Reason, request.Attempt);
-        return true;
-    }
-
     /// <summary>今の状態（診断ログの見出し用。件数と状態だけ）。</summary>
     public string DescribeState()
     {

@@ -10,6 +10,7 @@ namespace PlainClip.Services;
 ///    diagnostic.log へ書く。記録を始めたときは、それまでのメモリ上の経過も先頭に書く（起動直後の様子も後から取れる）。
 ///  - <see cref="Add"/> はどのスレッドからでも呼べる（メモリへ足すだけ）。ファイルへは UI スレッドの <see cref="Flush"/> でまとめて書く。
 ///    フックのコールバックからは呼ばない。
+///  - 記録を止めた後のログは、最後に書いてから 7 日で削除する（V2.2.0。<see cref="DiagnosticMode.ShouldDelete"/>）。設定画面からすぐ消すこともできる。
 ///  - 記録するのは時刻・件数・結果・エラー番号・版などだけ。クリップボードの本文・入力した文字・キーの並び・ウィンドウ名・パスは書かない。
 ///  - 保存先は実際のフォルダー。MSIX 版は %LOCALAPPDATA% への書き込みがパッケージのフォルダーへ移されるため、
 ///    エクスプローラーで開ける実際の場所（%LOCALAPPDATA%\Packages\&lt;ファミリー名&gt;\LocalCache\Local\PlainClip）へ直接書く。
@@ -27,6 +28,9 @@ public static class DiagnosticLog
     public static string Folder { get; } = ResolveFolder();
 
     public static string FilePath => Path.Combine(Folder, FileName);
+
+    /// <summary>大きさの上限で移した前のファイル（<see cref="RollingLogFile.OldPath"/>）。</summary>
+    public static string OldFilePath => Path.ChangeExtension(FilePath, ".old.log");
 
     public static bool Recording => Journal.Recording;
 
@@ -66,6 +70,47 @@ public static class DiagnosticLog
             if (_writeFailed) return;
             _writeFailed = true;
             ErrorLog.Write($"診断ログを書けませんでした: {FilePath}", ex);
+        }
+    }
+
+    /// <summary>残っているログ（今のファイル・前のファイル）を最後に書いた時刻（UTC）。どちらも無ければ null。</summary>
+    public static DateTime? LastWriteUtc()
+    {
+        DateTime? latest = null;
+        foreach (var path in new[] { FilePath, OldFilePath })
+        {
+            try
+            {
+                var info = new FileInfo(path);
+                if (info.Exists && (latest is null || info.LastWriteTimeUtc > latest)) latest = info.LastWriteTimeUtc;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 調べられなければ無いものとして扱う（削除の判断・表示だけに使う）。
+            }
+        }
+        return latest;
+    }
+
+    /// <summary>残っているログを削除する（記録中は何もしない）。消せなければ理由を返す（理由と保存先は error.log にも書く）。</summary>
+    public static string? Delete()
+    {
+        if (Recording) return null;
+        try
+        {
+            lock (FileGate)
+            {
+                foreach (var path in new[] { FilePath, OldFilePath })
+                {
+                    if (File.Exists(path)) File.Delete(path);
+                }
+            }
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ErrorLog.Write($"診断ログを削除できませんでした: {FilePath}", ex);
+            return ex.Message;
         }
     }
 

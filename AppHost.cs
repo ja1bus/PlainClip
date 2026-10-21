@@ -84,7 +84,6 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _tray.ClearRequested += (_, _) => _history.Clear();
         _tray.GuideRequested += (_, _) => ShowGuide();
         _tray.SettingsRequested += (_, _) => ShowSettings();
-        _tray.ResetKeyMonitorRequested += (_, _) => _hookSupervisor?.ResetManually();
         _tray.ExitRequested += (_, _) => Exit();
 
         _clipboard = new ClipboardService(_app.Dispatcher);
@@ -415,7 +414,6 @@ public sealed class AppHost : ISettingsHost, IDisposable
     {
         var tap = _settings.PasteLatestTrigger == TriggerMode.DoubleTap;
         _hookSupervisor?.SetDoubleTap(tap, _settings.DoubleTapKey);
-        _tray?.SetKeyMonitorAvailable(tap);
         _hotkeys?.Apply(
             _settings.PasteLatestTrigger == TriggerMode.Shortcut ? _settings.PasteLatestShortcutValue : Shortcut.None,
             _settings.ShowHistoryTrigger == TriggerMode.Shortcut ? _settings.ShowHistoryShortcutValue : Shortcut.None,
@@ -425,8 +423,7 @@ public sealed class AppHost : ISettingsHost, IDisposable
     /// <summary>キー監視の回復の結果を知らせる（V2.1.0）。</summary>
     private void OnHookNotice(HookNotice notice, int error)
     {
-        if (notice == HookNotice.ManualDone) NoticeWindow.Display(Strings.NoticeKeyMonitorReset);
-        else if (notice == HookNotice.Failed) _tray?.ShowBalloon("PlainClip", string.Format(Strings.HookFailedFormat, error), warning: true);
+        if (notice == HookNotice.Failed) _tray?.ShowBalloon("PlainClip", string.Format(Strings.HookFailedFormat, error), warning: true);
     }
 
     // --- 診断ログ（V2.1.0。PROJECT.md「診断ログ」） ---
@@ -437,6 +434,10 @@ public sealed class AppHost : ISettingsHost, IDisposable
 
     public string DiagnosticLogFolder => DiagnosticLog.Folder;
 
+    /// <summary>記録を止めた後に残っている診断ログを自動で削除する時刻（UTC。V2.2.0）。記録中・ログが無いときは null。</summary>
+    public DateTime? DiagnosticLogDeleteAt =>
+        !DiagnosticLog.Recording && DiagnosticLog.LastWriteUtc() is { } last ? DiagnosticMode.DeleteAt(last) : null;
+
     public event EventHandler? DiagnosticLogChanged;
 
     /// <summary>起動時: 記録の期間中なら記録を続ける。期限切れで止めた（設定を補正した）なら保存し直す。</summary>
@@ -444,7 +445,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
     {
         if (expiredAtLoad) SaveSettingsQuietly();
         if (DiagnosticLogUntil is not null) DiagnosticLog.Start(DiagnosticHeader());
-        // 期限の確認（10 分ごと）。止め忘れても 7 日で止まる。
+        DeleteExpiredDiagnosticLog();
+        // 期限の確認（10 分ごと）。止め忘れても 7 日で止まり、止めてから 7 日でログを消す。
         _diagnosticsTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, _app.Dispatcher)
         {
             Interval = TimeSpan.FromMinutes(10),
@@ -452,6 +454,7 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _diagnosticsTimer.Tick += (_, _) =>
         {
             if (DiagnosticLog.Recording && DiagnosticLogUntil is null) SetDiagnosticLog(false, "期限切れ");
+            DeleteExpiredDiagnosticLog();
         };
         _diagnosticsTimer.Start();
     }
@@ -474,6 +477,22 @@ public sealed class AppHost : ISettingsHost, IDisposable
         var error = SaveSettingsQuietly();
         DiagnosticLogChanged?.Invoke(this, EventArgs.Empty);
         return error is null ? null : string.Format(Strings.SettingsSaveFailedFormat, _store.FilePath, error);
+    }
+
+    /// <summary>残っている診断ログを削除する（設定画面の「削除」）。消せなければメッセージを返す。</summary>
+    public string? DeleteDiagnosticLog()
+    {
+        var error = DiagnosticLog.Delete();
+        DiagnosticLogChanged?.Invoke(this, EventArgs.Empty);
+        return error is null ? null : string.Format(Strings.DiagnosticsDeleteFailedFormat, DiagnosticLog.Folder, error);
+    }
+
+    /// <summary>記録を止めてから 7 日たったログを削除する（起動時と 10 分ごと）。</summary>
+    private void DeleteExpiredDiagnosticLog()
+    {
+        if (!DiagnosticMode.ShouldDelete(DiagnosticLog.Recording, DiagnosticLog.LastWriteUtc(), DateTime.UtcNow)) return;
+        DiagnosticLog.Delete();
+        DiagnosticLogChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>診断ログの見出し（版・環境・今の状態。本文・入力・ウィンドウ名・パスは含めない）。</summary>

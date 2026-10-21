@@ -131,7 +131,7 @@ Details: {2}</value>
     <value>Content of the selected item</value>
   </data>
   <data name="HookFailedFormat" xml:space="preserve">
-    <value>Could not start monitoring the keyboard (error {0}). Pressing a key twice to paste is not available. Try "Reset key monitoring" in the tray icon menu, or switch to a shortcut in Settings. Copying from the history list and Ctrl+V still work.</value>
+    <value>Could not start monitoring the keyboard (error {0}). Pressing a key twice to paste is not available. Restart PlainClip, or switch to a shortcut in Settings. Copying from the history list and Ctrl+V still work.</value>
   </data>
   <data name="HotkeyDuplicateFormat" xml:space="preserve">
     <value>This shortcut ({0}) cannot be used. Another PlainClip function already uses it.</value>
@@ -382,17 +382,11 @@ URL: {1}</value>
   <data name="TrayTooltipFormat" xml:space="preserve">
     <value>PlainClip ({0} items in history)</value>
   </data>
-  <data name="TrayResetKeyMonitor" xml:space="preserve">
-    <value>Reset key monitoring</value>
-  </data>
-  <data name="NoticeKeyMonitorReset" xml:space="preserve">
-    <value>Key monitoring has been reset.</value>
-  </data>
   <data name="DiagnosticsConfirmFormat" xml:space="preserve">
     <value>Record a diagnostic log for support?
 
 Only the times, counts, and results of key monitoring and app events are recorded. Clipboard contents, typed characters, and window titles are not recorded.
-Recording stops automatically after {0} days.
+Recording stops automatically after {0} days. The log is deleted automatically {2} days after recording stops.
 
 Location:
 {1}</value>
@@ -405,6 +399,22 @@ Location:
   </data>
   <data name="DiagnosticsStop" xml:space="preserve">
     <value>Stop recording</value>
+  </data>
+  <data name="DiagnosticsKeptFormat" xml:space="preserve">
+    <value>A diagnostic log remains (it will be deleted automatically on {0}).</value>
+  </data>
+  <data name="DiagnosticsDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="DiagnosticsDeleteConfirm" xml:space="preserve">
+    <value>Delete the diagnostic log?</value>
+  </data>
+  <data name="DiagnosticsDeleteFailedFormat" xml:space="preserve">
+    <value>Could not delete the diagnostic log.
+
+{0}
+
+{1}</value>
   </data>
   <data name="DiagnosticsOpenFailedFormat" xml:space="preserve">
     <value>Could not open the folder.

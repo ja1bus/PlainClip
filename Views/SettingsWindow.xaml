@@ -121,16 +121,26 @@
                  全文は同梱の LICENSE をこの画面から表示し、Web だけに頼らない。 -->
             <Border BorderBrush="{x:Static SystemColors.ControlLightBrush}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,8,0,0">
                 <StackPanel>
-                    <!-- 診断ログ（V2.1.0）: 記録中だけ表示する。バージョン表示を Ctrl+Shift+クリックで始める（サポート用。PROJECT.md「診断ログ」）。 -->
+                    <!-- 診断ログ（V2.1.0）: 記録中と、記録を止めた後にログが残っている間（V2.2.0）だけ表示する。
+                         バージョン表示を Ctrl+Shift+クリックで始める（サポート用。PROJECT.md「診断ログ」）。 -->
                     <StackPanel x:Name="DiagnosticsPanel" Visibility="Collapsed" Margin="0,0,0,8">
                         <TextBlock x:Name="DiagnosticsText" Style="{StaticResource Note}" />
-                        <TextBlock Style="{StaticResource Note}" Margin="0,2,0,0">
+                        <TextBlock x:Name="DiagnosticsRecordingLinks" Style="{StaticResource Note}" Margin="0,2,0,0">
                             <Hyperlink Click="OnOpenDiagnostics">
                                 <Run Text="{x:Static l:Strings.DiagnosticsOpenFolder}" />
                             </Hyperlink>
                             <Run Text=" · " />
                             <Hyperlink Click="OnStopDiagnostics">
                                 <Run Text="{x:Static l:Strings.DiagnosticsStop}" />
+                            </Hyperlink>
+                        </TextBlock>
+                        <TextBlock x:Name="DiagnosticsKeptLinks" Style="{StaticResource Note}" Margin="0,2,0,0">
+                            <Hyperlink Click="OnOpenDiagnostics">
+                                <Run Text="{x:Static l:Strings.DiagnosticsOpenFolder}" />
+                            </Hyperlink>
+                            <Run Text=" · " />
+                            <Hyperlink Click="OnDeleteDiagnostics">
+                                <Run Text="{x:Static l:Strings.DiagnosticsDelete}" />
                             </Hyperlink>
                         </TextBlock>
                     </StackPanel>

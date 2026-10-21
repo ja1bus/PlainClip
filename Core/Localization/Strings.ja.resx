@@ -131,7 +131,7 @@
     <value>選んだ履歴の内容</value>
   </data>
   <data name="HookFailedFormat" xml:space="preserve">
-    <value>キー入力の監視を開始できませんでした（エラー {0}）。キーを 2 回押す貼り付けは使えません。トレイのメニューの「キー監視を再設定」を試すか、「設定」で通常ショートカットに切り替えてください。履歴一覧からのコピーと Ctrl+V は使えます。</value>
+    <value>キー入力の監視を開始できませんでした（エラー {0}）。キーを 2 回押す貼り付けは使えません。PlainClip を終了して起動し直すか、「設定」で通常ショートカットに切り替えてください。履歴一覧からのコピーと Ctrl+V は使えます。</value>
   </data>
   <data name="HotkeyDuplicateFormat" xml:space="preserve">
     <value>このショートカット（{0}）は使用できません。PlainClip の別の機能と同じです</value>
@@ -382,17 +382,11 @@ URL: {1}</value>
   <data name="TrayTooltipFormat" xml:space="preserve">
     <value>PlainClip（履歴 {0} 件）</value>
   </data>
-  <data name="TrayResetKeyMonitor" xml:space="preserve">
-    <value>キー監視を再設定</value>
-  </data>
-  <data name="NoticeKeyMonitorReset" xml:space="preserve">
-    <value>キー入力の監視を再設定しました。</value>
-  </data>
   <data name="DiagnosticsConfirmFormat" xml:space="preserve">
     <value>サポート用の診断ログを記録しますか？
 
 キー監視とアプリの動作の時刻・件数・結果だけを記録します。クリップボードの内容・入力した文字・ウィンドウ名は記録しません。
-{0} 日後に自動で記録を止めます。
+{0} 日後に自動で記録を止めます。記録を止めてから {2} 日後にログを自動で削除します。
 
 保存先:
 {1}</value>
@@ -405,6 +399,22 @@ URL: {1}</value>
   </data>
   <data name="DiagnosticsStop" xml:space="preserve">
     <value>記録をやめる</value>
+  </data>
+  <data name="DiagnosticsKeptFormat" xml:space="preserve">
+    <value>診断ログが残っています（{0} に自動で削除します）。</value>
+  </data>
+  <data name="DiagnosticsDelete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="DiagnosticsDeleteConfirm" xml:space="preserve">
+    <value>診断ログを削除しますか？</value>
+  </data>
+  <data name="DiagnosticsDeleteFailedFormat" xml:space="preserve">
+    <value>診断ログを削除できませんでした。
+
+{0}
+
+{1}</value>
   </data>
   <data name="DiagnosticsOpenFailedFormat" xml:space="preserve">
     <value>フォルダーを開けませんでした。

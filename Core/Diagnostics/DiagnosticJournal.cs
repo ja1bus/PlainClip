@@ -5,10 +5,24 @@ namespace PlainClip.Core.Diagnostics;
 /// <summary>
 /// サポート用の診断ログを記録する期間（V2.1.0。PROJECT.md「診断ログ」）。普段は記録しない。
 /// 設定画面のバージョン表示を Ctrl+Shift+クリックして有効にし、7 日たつと自動で止まる（止め忘れても残り続けない）。
+/// 記録を止めた後のログは、最後に書いてから 7 日で削除する（V2.2.0。止めた後に送ってもらう猶予）。
 /// </summary>
 public static class DiagnosticMode
 {
     public static readonly TimeSpan Duration = TimeSpan.FromDays(7);
+
+    /// <summary>記録を止めた後、ログを残す期間（最後に書いた時刻から）。</summary>
+    public static readonly TimeSpan Retention = TimeSpan.FromDays(7);
+
+    /// <summary>残っているログを自動で削除する時刻。</summary>
+    public static DateTime DeleteAt(DateTime lastWriteUtc) => lastWriteUtc + Retention;
+
+    /// <summary>
+    /// 残っているログを削除する時期か。記録中は消さない。
+    /// 最後に書いた時刻が不自然に先（時計の変更）なら、残り続けないように消す。
+    /// </summary>
+    public static bool ShouldDelete(bool recording, DateTime? lastWriteUtc, DateTime nowUtc) =>
+        !recording && lastWriteUtc is { } last && (nowUtc >= DeleteAt(last) || last - nowUtc > TimeSpan.FromDays(1));
 
     public static DateTime NewUntil(DateTime nowUtc) => nowUtc + Duration;
 

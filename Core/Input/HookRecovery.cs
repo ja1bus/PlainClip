@@ -20,9 +20,6 @@ public enum HookRefreshReason
 
     /// <summary>スリープ・休止状態からの復帰。</summary>
     Resume,
-
-    /// <summary>トレイの「キー監視を再設定」。</summary>
-    Manual,
 }
 
 /// <summary>1 つのフックの登録結果。</summary>
@@ -180,9 +177,6 @@ public enum HookNotice
 
     /// <summary>再試行しても登録できなかった（回復の方法と、通常ショートカットへの切り替えを案内する）。</summary>
     Failed,
-
-    /// <summary>手動の再設定が成功した。</summary>
-    ManualDone,
 }
 
 /// <summary>
@@ -199,7 +193,7 @@ public sealed class HookRecoveryController
     /// <summary>
     /// 登録に失敗したときの再試行の間隔。サインイン直後はデスクトップの準備・他の常駐アプリの起動で一時的に失敗しうるため、
     /// すぐ（1 秒）・少し待って（3 秒）・さらに待って（5 秒）の 3 回、計 9 秒まで試す。それ以上待っても直る見込みは低く、
-    /// 利用者へ早めに知らせて手動の再設定・通常ショートカットへの切り替えを選べるようにする。
+    /// 利用者へ早めに知らせて再起動・通常ショートカットへの切り替えを選べるようにする。
     /// </summary>
     public static readonly TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5)];
 
@@ -226,7 +220,6 @@ public sealed class HookRecoveryController
     private long? _settleAt;
     private HookRefreshReason _settleReason;
     private long? _lastCheck;
-    private bool _manualPending;
 
     public HookLivenessMonitor Monitor => _monitor;
 
@@ -272,7 +265,6 @@ public sealed class HookRecoveryController
     public HookNotice OnReport(HookReport report, long nowMs)
     {
         if (_disposed) return HookNotice.None;
-        var manual = report.Reason == HookRefreshReason.Manual || _manualPending && report.Reason == HookRefreshReason.RetryAfterFailure;
         if (report.KeyboardFailed)
         {
             _failures++;
@@ -282,18 +274,12 @@ public sealed class HookRecoveryController
                 return HookNotice.None;
             }
             _retryAt = null;
-            _manualPending = false;
             return Needed ? HookNotice.Failed : HookNotice.None;
         }
         if (report.KeyboardActive)
         {
             _failures = 0;
             _retryAt = null;
-            if (manual)
-            {
-                _manualPending = false;
-                return HookNotice.ManualDone;
-            }
         }
         return HookNotice.None;
     }
@@ -304,18 +290,6 @@ public sealed class HookRecoveryController
         if (!Needed) return;
         _settleReason = reason;
         _settleAt = nowMs + (long)SystemEventSettle.TotalMilliseconds;
-    }
-
-    /// <summary>トレイの「キー監視を再設定」。登録し直すなら依頼を返す（監視を使わない設定なら null）。</summary>
-    public HookRefreshRequest? Manual()
-    {
-        if (!Needed) return null;
-        // 手動のときは失敗の回数を数え直し、再試行の機会を改めて与える。他の予約はこの再登録に含まれる。
-        _failures = 0;
-        _retryAt = null;
-        _settleAt = null;
-        _manualPending = true;
-        return new HookRefreshRequest(HookRefreshReason.Manual, 0);
     }
 
     /// <summary>

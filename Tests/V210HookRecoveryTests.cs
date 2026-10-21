@@ -6,7 +6,7 @@ using PlainClip.Core.Settings;
 namespace PlainClip.Tests;
 
 /// <summary>
-/// V2.1.0: キー監視の回復（登録失敗の再試行・起動後の予防の再登録・復帰時の再登録・届いていないことの検知・手動の再設定）と診断ログ。
+/// V2.1.0: キー監視の回復（登録失敗の再試行・起動後の予防の再登録・復帰時の再登録・届いていないことの検知。V2.2.0 で手動の再設定は廃止）と診断ログ。
 /// OS（フック・SystemEvents・GetLastInputInfo）に触れない判定部分（Core）を、時刻を与えて確かめる。
 /// </summary>
 public sealed class V210HookRecoveryTests
@@ -66,7 +66,6 @@ public sealed class V210HookRecoveryTests
 
         c.Configure(tap: false, capture: false);
         Assert.False(c.HasPendingWork);
-        Assert.Null(c.Manual());
         c.OnSystemEvent(HookRefreshReason.SessionUnlock, 100);
         // 届いていない入力があっても、監視を使わない設定では登録し直さない。
         var missing = new HookSnapshot(true, 0, 100_000, true);
@@ -148,41 +147,6 @@ public sealed class V210HookRecoveryTests
         for (var t = 8000; t < 60_000; t += 1000) Assert.NotEqual(HookRefreshReason.StartupRefresh, Tick(c, t)?.Reason);
     }
 
-    // --- 手動の再設定 ---
-
-    [Fact]
-    public void Manual_reset_reports_done_on_success()
-    {
-        var c = new HookRecoveryController();
-        c.Configure(true, false);
-        Assert.Equal(new HookRefreshRequest(HookRefreshReason.Manual, 0), c.Manual());
-        Assert.Equal(HookNotice.ManualDone, c.OnReport(Report(HookRefreshReason.Manual, HookResult.Installed), 0));
-    }
-
-    [Fact]
-    public void Manual_reset_failure_is_retried_and_the_retry_success_is_reported_as_done()
-    {
-        var c = new HookRecoveryController();
-        c.Configure(true, false);
-        c.Manual();
-        Assert.Equal(HookNotice.None, c.OnReport(Report(HookRefreshReason.Manual, HookResult.Failed, 5), 0));
-        Assert.Equal(HookRefreshReason.RetryAfterFailure, Tick(c, 1000)?.Reason);
-        Assert.Equal(HookNotice.ManualDone, c.OnReport(Report(HookRefreshReason.RetryAfterFailure, HookResult.Installed, 0, 1), 1000));
-    }
-
-    [Fact]
-    public void Manual_reset_after_retries_ran_out_gets_a_fresh_set_of_retries()
-    {
-        var c = new HookRecoveryController();
-        c.Configure(true, false);
-        for (var i = 0; i < 4; i++) c.OnReport(Report(HookRefreshReason.RetryAfterFailure, HookResult.Failed, 5, i), 0);
-        Assert.Equal(4, c.Failures);
-        c.Manual();
-        Assert.Equal(0, c.Failures);
-        Assert.Equal(HookNotice.None, c.OnReport(Report(HookRefreshReason.Manual, HookResult.Failed, 5), 0));
-        Assert.True(c.HasPendingWork);
-    }
-
     // --- 終了 ---
 
     [Fact]
@@ -195,7 +159,6 @@ public sealed class V210HookRecoveryTests
         c.OnSystemEvent(HookRefreshReason.Resume, 0);
         c.Dispose();
         Assert.False(c.HasPendingWork);
-        Assert.Null(c.Manual());
         Assert.Equal(HookNotice.None, c.OnReport(Report(HookRefreshReason.RetryAfterFailure, HookResult.Failed, 5), 0));
         c.OnSystemEvent(HookRefreshReason.SessionUnlock, 0);
         for (var t = 0; t < 60_000; t += 1000) Assert.Null(Tick(c, t, new HookSnapshot(true, 0, 50_000, true)));

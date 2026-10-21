@@ -50,6 +50,12 @@ public interface ISettingsHost
     /// <summary>診断ログの実際の保存先。</summary>
     string DiagnosticLogFolder { get; }
 
+    /// <summary>記録を止めた後に残っているログを自動で削除する時刻（UTC。V2.2.0）。記録中・ログが無いときは null。</summary>
+    DateTime? DiagnosticLogDeleteAt { get; }
+
+    /// <summary>残っているログを削除する。消せなければメッセージを返す。</summary>
+    string? DeleteDiagnosticLog();
+
     /// <summary>診断ログの記録を始める・止める。設定の保存に失敗したらメッセージを返す。</summary>
     string? SetDiagnosticLog(bool enable);
 
@@ -65,6 +71,7 @@ public interface ISettingsHost
 ///  - 履歴一覧を表示: 通常ショートカット / 無効（既定は無効。トレイのクリックで表示できる）
 ///  - 数字ショートカット: 使わない（既定） / 修飾キー＋1～9（候補から選ぶ）
 ///  - ショートカットは既定で空欄。入力・選択した時点で空きを確認し、登録できる場合だけ OK / 適用を押せる。
+///  - 今の設定から変更が無いときは［適用］を押せない（V2.2.0）。［OK］は変更が無ければそのまま閉じる。
 ///  - 自動起動・最大履歴件数・重複のまとめ・表示言語。バージョンと © ja1bus を表示する。
 /// </summary>
 public partial class SettingsWindow : Window
@@ -110,6 +117,14 @@ public partial class SettingsWindow : Window
             else PasteDoubleTap.IsChecked = true; // Checked から Evaluate が呼ばれる
         };
         NumberCombo.SelectionChanged += (_, _) => Evaluate();
+        // 変更の有無で［適用］を押せるかが変わる項目。
+        MaxCount.SelectionChanged += (_, _) => Evaluate();
+        LanguageCombo.SelectionChanged += (_, _) => Evaluate();
+        foreach (var box in new[] { MergeDuplicates, AutoStart })
+        {
+            box.Checked += (_, _) => Evaluate();
+            box.Unchecked += (_, _) => Evaluate();
+        }
 
         Load(_host.Settings);
         AutoStart.IsChecked = _host.AutoStartEnabled;
@@ -137,13 +152,21 @@ public partial class SettingsWindow : Window
         const System.Windows.Input.ModifierKeys both = System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift;
         if (System.Windows.Input.Keyboard.Modifiers != both || _host.DiagnosticLogUntil is not null) return;
         var message = string.Format(Strings.DiagnosticsConfirmFormat, (int)Core.Diagnostics.DiagnosticMode.Duration.TotalDays,
-            Path.Combine(_host.DiagnosticLogFolder, DiagnosticLog.FileName));
+            Path.Combine(_host.DiagnosticLogFolder, DiagnosticLog.FileName), (int)Core.Diagnostics.DiagnosticMode.Retention.TotalDays);
         if (MessageBox.Show(this, message, "PlainClip", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
             return;
         ShowError(_host.SetDiagnosticLog(true));
     }
 
     private void OnStopDiagnostics(object sender, RoutedEventArgs e) => ShowError(_host.SetDiagnosticLog(false));
+
+    private void OnDeleteDiagnostics(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, Strings.DiagnosticsDeleteConfirm, "PlainClip", MessageBoxButton.YesNo, MessageBoxImage.Question,
+                MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+        ShowError(_host.DeleteDiagnosticLog());
+    }
 
     private void OnOpenDiagnostics(object sender, RoutedEventArgs e)
     {
@@ -154,19 +177,24 @@ public partial class SettingsWindow : Window
 
     private void OnDiagnosticLogChanged(object? sender, EventArgs e) => UpdateDiagnostics();
 
-    /// <summary>記録中だけ、期限・保存先と「保存先を開く」「記録をやめる」を表示する（普段は何も表示しない）。</summary>
+    /// <summary>
+    /// 記録中は期限・保存先と「保存先を開く」「記録をやめる」、記録を止めた後にログが残っている間は
+    /// 自動で削除する日時・保存先と「保存先を開く」「削除」を表示する（V2.2.0）。普段は何も表示しない。
+    /// </summary>
     private void UpdateDiagnostics()
     {
+        string? status = null;
         if (_host.DiagnosticLogUntil is { } until)
-        {
-            DiagnosticsText.Text = string.Format(Strings.DiagnosticsActiveFormat, until.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)) +
-                                   Environment.NewLine + _host.DiagnosticLogFolder;
-            DiagnosticsPanel.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            DiagnosticsPanel.Visibility = Visibility.Collapsed;
-        }
+            status = string.Format(Strings.DiagnosticsActiveFormat, until.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
+        else if (_host.DiagnosticLogDeleteAt is { } deleteAt)
+            status = string.Format(Strings.DiagnosticsKeptFormat, deleteAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
+
+        DiagnosticsPanel.Visibility = status is null ? Visibility.Collapsed : Visibility.Visible;
+        if (status is null) return;
+        var recording = _host.DiagnosticLogUntil is not null;
+        DiagnosticsText.Text = status + Environment.NewLine + _host.DiagnosticLogFolder;
+        DiagnosticsRecordingLinks.Visibility = recording ? Visibility.Visible : Visibility.Collapsed;
+        DiagnosticsKeptLinks.Visibility = recording ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// <summary>コンボボックスの選択肢（値と表示名）。</summary>
@@ -236,7 +264,31 @@ public partial class SettingsWindow : Window
         var pasteOk = EvaluateOne(HotkeyAction.PasteLatest, PasteShortcut.IsChecked == true, PasteShortcutBox.Shortcut, history, PasteStatus);
         var historyOk = EvaluateOne(HotkeyAction.ShowHistory, HistoryShortcut.IsChecked == true, HistoryShortcutBox.Shortcut, paste, HistoryStatus);
         var numbersOk = EvaluateNumbers(SelectedNumberModifiers, paste, history);
-        OkButton.IsEnabled = ApplyButton.IsEnabled = pasteOk && historyOk && numbersOk;
+        OkButton.IsEnabled = pasteOk && historyOk && numbersOk;
+        ApplyButton.IsEnabled = OkButton.IsEnabled && HasChanges();
+    }
+
+    /// <summary>今の設定（と自動起動）から変更があるか（V2.2.0）。</summary>
+    private bool HasChanges() =>
+        !ReadForm().SameChoicesAs(_host.Settings) || (AutoStart.IsChecked == true) != _host.AutoStartEnabled;
+
+    /// <summary>画面の内容を設定にする（今の設定を写して、画面で選ぶ項目だけを置き換える）。</summary>
+    private AppSettings ReadForm()
+    {
+        var s = _host.Settings.Clone();
+        s.PasteLatestTrigger = PasteDoubleTap.IsChecked == true ? TriggerMode.DoubleTap
+            : PasteShortcut.IsChecked == true ? TriggerMode.Shortcut
+            : TriggerMode.Disabled;
+        s.DoubleTapKey = SelectedTapKey;
+        s.ShowHistoryTrigger = HistoryShortcut.IsChecked == true ? TriggerMode.Shortcut : TriggerMode.Disabled;
+        // 使わない側の入力値も、正しければ次回のために保存する（空欄なら未割当）。
+        s.PasteLatestShortcut = ToSetting(PasteShortcutBox.Shortcut);
+        s.ShowHistoryShortcut = ToSetting(HistoryShortcutBox.Shortcut);
+        s.NumberPasteModifiers = NumberPaste.Format(SelectedNumberModifiers);
+        if (MaxCount.SelectedItem is int count) s.MaxHistoryCount = count;
+        s.MergeDuplicates = MergeDuplicates.IsChecked == true;
+        s.Language = (LanguageCombo.SelectedItem as Choice<string>)?.Value ?? UiLanguage.System;
+        return s;
     }
 
     /// <summary>左 Ctrl を選んだときだけ、PowerToys「マウスを探す」と重なることを注記する。</summary>
@@ -339,21 +391,7 @@ public partial class SettingsWindow : Window
         Evaluate();
         if (!OkButton.IsEnabled) return false;
 
-        var s = _host.Settings.Clone();
-        s.PasteLatestTrigger = PasteDoubleTap.IsChecked == true ? TriggerMode.DoubleTap
-            : PasteShortcut.IsChecked == true ? TriggerMode.Shortcut
-            : TriggerMode.Disabled;
-        s.DoubleTapKey = SelectedTapKey;
-        s.ShowHistoryTrigger = HistoryShortcut.IsChecked == true ? TriggerMode.Shortcut : TriggerMode.Disabled;
-        // 使わない側の入力値も、正しければ次回のために保存する（空欄なら未割当）。
-        s.PasteLatestShortcut = ToSetting(PasteShortcutBox.Shortcut);
-        s.ShowHistoryShortcut = ToSetting(HistoryShortcutBox.Shortcut);
-        s.NumberPasteModifiers = NumberPaste.Format(SelectedNumberModifiers);
-        if (MaxCount.SelectedItem is int count) s.MaxHistoryCount = count;
-        s.MergeDuplicates = MergeDuplicates.IsChecked == true;
-        s.Language = (LanguageCombo.SelectedItem as Choice<string>)?.Value ?? UiLanguage.System;
-
-        var error = _host.ApplySettings(s, AutoStart.IsChecked == true);
+        var error = _host.ApplySettings(ReadForm(), AutoStart.IsChecked == true);
         AutoStart.IsChecked = _host.AutoStartEnabled;
         Evaluate();
         if (error is not null)
@@ -388,7 +426,8 @@ public partial class SettingsWindow : Window
 
     private void Ok_Click(object sender, RoutedEventArgs e)
     {
-        if (Apply()) Close();
+        // 変更が無ければ反映し直さずに閉じる（V2.2.0）。
+        if (!HasChanges() || Apply()) Close();
     }
 
     private void Apply_Click(object sender, RoutedEventArgs e) => Apply();
