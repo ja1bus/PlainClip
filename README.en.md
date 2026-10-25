@@ -22,7 +22,7 @@ There is no image or file history, no saved snippets, no search, and no sync. Th
 
 - Windows 11 (64-bit, x64)
 - The Microsoft Store version includes .NET, so nothing else needs to be installed.
-- To build and run from the source in this repository, you need the [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0).
+- To build and run from the source in this repository, you need the [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ## Installation
 
@@ -49,7 +49,7 @@ For details, see the user manual.
 ### Requirements
 
 - Windows 11 x64
-- [.NET SDK 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) (verified: 8.0.425)
+- [.NET SDK 10.0](https://dotnet.microsoft.com/download/dotnet/10.0) (verified: 10.0.402)
 - Builds with the `dotnet` CLI alone (Visual Studio is not required).
 - The app does not depend on NuGet packages. Only the tests use the NuGet packages `Microsoft.NET.Test.Sdk`, `xunit`, and `xunit.runner.visualstudio` (downloaded from nuget.org on the first build).
 
@@ -65,7 +65,7 @@ dotnet run --project PlainClip.csproj
 
 `dotnet run` starts the app in the notification area. To exit, choose "Exit" in the tray menu.
 
-To create a folder for distribution (framework-dependent, win-x64), run the following. The output goes to `publish\FrameworkDependent\` and requires the .NET 8 Desktop Runtime (x64).
+To create a folder for distribution (framework-dependent, win-x64), run the following. The output goes to `publish\FrameworkDependent\` and requires the .NET 10 Desktop Runtime (x64).
 
 ```powershell
 dotnet publish PlainClip.csproj -c Release -p:PublishProfile=FrameworkDependent
@@ -77,7 +77,7 @@ The output also includes `LICENSE` and `THIRD-PARTY-NOTICES.md` (shown from "MIT
 
 | Path | Contents |
 |---|---|
-| `PlainClip.csproj` | The app (WPF, `net8.0-windows`). Only the tray icon uses the WinForms `NotifyIcon` |
+| `PlainClip.csproj` | The app (WPF, `net10.0-windows`). Only the tray icon uses the WinForms `NotifyIcon` |
 | `Core/` | Logic that does not depend on the UI or Win32 (history, normalization to plain text, double-tap detection, shortcuts, settings) and the UI strings (English `Strings.resx`, Japanese `Strings.ja.resx`) |
 | `Tests/` | Unit tests for `Core` (xUnit) |
 | `Services/`, `Views/`, `Interop/` | Clipboard watching and reading/writing, keyboard hook, shortcuts, pasting, tray, and so on; windows; Win32 API declarations |

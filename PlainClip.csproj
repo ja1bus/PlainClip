@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <!-- タスクトレイの NotifyIcon だけに使う（.NET の WindowsDesktop 共有フレームワークに含まれ、NuGet 依存ではない）。 -->
     <UseWindowsForms>true</UseWindowsForms>
@@ -11,13 +11,16 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>PlainClip</RootNamespace>
     <AssemblyName>PlainClip</AssemblyName>
-    <Version>2.2.0</Version>
+    <Version>2.2.1</Version>
     <ApplicationIcon>Resources/icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- WFAC010: WinForms 向けの「DPI 設定は manifest でなく API で」という助言。WPF は manifest の PerMonitorV2 を使うため抑止する。 -->
-    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <!--
+      WinForms 向けの「DPI 設定は manifest でなく API で」という助言。WPF は manifest の PerMonitorV2 を使うため抑止する。
+      .NET 8 では WFAC010、.NET 9 以降は WFO0003 という ID で出る。
+    -->
+    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
 
-    <!-- 配布は Framework-dependent。対象 PC の .NET 8 Desktop Runtime を使い、.NET は内包しない。 -->
+    <!-- 配布は Framework-dependent。対象 PC の .NET 10 Desktop Runtime を使い、.NET は内包しない。 -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
@@ -32,11 +35,11 @@
   <!--
     Microsoft Store 用の MSIX（V2.0.0〜。PROJECT.md「Microsoft Store（MSIX）」）。installer/msix/build-msix.ps1 が -p:PlainClipMsix=true で publish する。
     - 自動起動に StartupTask（WinRT）を使うため、TargetFramework に Windows の版を付けて定数 MSIX を定義する。
-    - Store から入れた PC に .NET 8 Desktop Runtime があるとは限らないため、MSIX の中身だけは .NET を内包する（Self-contained・複数ファイル）。
+    - Store から入れた PC に .NET 10 Desktop Runtime があるとは限らないため、MSIX の中身だけは .NET を内包する（Self-contained・複数ファイル）。
       自分用の Framework-dependent 版（Inno Setup）はこの設定の影響を受けない。
   -->
   <PropertyGroup Condition="'$(PlainClipMsix)' == 'true'">
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <DefineConstants>$(DefineConstants);MSIX</DefineConstants>
     <SelfContained>true</SelfContained>

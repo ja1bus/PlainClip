@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Core（履歴・正規化・ダブルタップ判定・ショートカット・設定）の単体テスト。本体の exe には入らない。 -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>

@@ -22,7 +22,7 @@ PlainClip（Microsoft Store での表示名は Plain Clip）は、Windows 11 向
 
 - Windows 11（64 ビット、x64）
 - Microsoft Store 版は .NET を内包しているため、追加のインストールは不要です。
-- このリポジトリのソースからビルドして実行する場合は、[.NET 8 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。
+- このリポジトリのソースからビルドして実行する場合は、[.NET 10 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/10.0) が必要です。
 
 ## インストール
 
@@ -49,7 +49,7 @@ PlainClip（Microsoft Store での表示名は Plain Clip）は、Windows 11 向
 ### 必要な環境
 
 - Windows 11 x64
-- [.NET SDK 8.0](https://dotnet.microsoft.com/download/dotnet/8.0)（確認済み: 8.0.425）
+- [.NET SDK 10.0](https://dotnet.microsoft.com/download/dotnet/10.0)（確認済み: 10.0.402）
 - `dotnet` CLI だけでビルドできます（Visual Studio は不要）。
 - 本体は NuGet パッケージに依存しません。テストだけが NuGet の `Microsoft.NET.Test.Sdk`・`xunit`・`xunit.runner.visualstudio` を使います（初回のビルド時に nuget.org から取得します）。
 
@@ -65,7 +65,7 @@ dotnet run --project PlainClip.csproj
 
 `dotnet run` で起動するとタスクトレイに常駐します。終了はトレイのメニューの「終了」です。
 
-配布用のフォルダ一式（Framework-dependent、win-x64）を作るには次を実行します。出力先は `publish\FrameworkDependent\` で、実行には .NET 8 Desktop Runtime（x64）が必要です。
+配布用のフォルダ一式（Framework-dependent、win-x64）を作るには次を実行します。出力先は `publish\FrameworkDependent\` で、実行には .NET 10 Desktop Runtime（x64）が必要です。
 
 ```powershell
 dotnet publish PlainClip.csproj -c Release -p:PublishProfile=FrameworkDependent
@@ -77,7 +77,7 @@ dotnet publish PlainClip.csproj -c Release -p:PublishProfile=FrameworkDependent
 
 | パス | 内容 |
 |---|---|
-| `PlainClip.csproj` | 本体（WPF、`net8.0-windows`）。タスクトレイだけ WinForms の `NotifyIcon` を使用 |
+| `PlainClip.csproj` | 本体（WPF、`net10.0-windows`）。タスクトレイだけ WinForms の `NotifyIcon` を使用 |
 | `Core/` | 画面・Win32 に依存しないロジック（履歴・書式なしテキストへの正規化・ダブルタップ判定・ショートカット・設定）と、画面の文字列（英語 `Strings.resx`・日本語 `Strings.ja.resx`） |
 | `Tests/` | `Core` の単体テスト（xUnit） |
 | `Services/`・`Views/`・`Interop/` | クリップボードの監視と読み書き・キーボードフック・ショートカット・貼り付け・トレイなどの処理、画面、Win32 API の宣言 |
