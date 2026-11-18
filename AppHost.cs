@@ -80,8 +80,9 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _history.Changed += (_, _) => OnHistoryChanged();
 
         _tray = new TrayService();
-        _tray.ShowHistoryRequested += (_, _) => ShowHistory(IntPtr.Zero);
+        _tray.ShowHistoryRequested += (_, _) => ShowHistory(IntPtr.Zero, fromKeyboard: false);
         _tray.ClearRequested += (_, _) => _history.Clear();
+        _tray.ConvertRequested += (_, _) => _ = ConvertClipboardAsync();
         _tray.GuideRequested += (_, _) => ShowGuide();
         _tray.SettingsRequested += (_, _) => ShowSettings();
         _tray.ExitRequested += (_, _) => Exit();
@@ -106,6 +107,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _hook.ShortcutCaptured += shortcut => ShortcutCaptured?.Invoke(shortcut);
         // 登録失敗の再試行・無通知で外されたときの回復（V2.1.0）。再試行しても登録できなければ案内する。
         _hookSupervisor = new HookSupervisor(_hook, _app.Dispatcher, OnHookNotice);
+        // 2 回押しの監視が停止中かをトレイに示す（V2.3.0）。
+        _hookSupervisor.MonitoringChanged += _ => UpdateTray();
 
         _hotkeys = new GlobalHotkeyService();
         _hotkeys.Pressed += OnHotkeyPressed;
@@ -153,6 +156,7 @@ public sealed class AppHost : ISettingsHost, IDisposable
         var foreground = GetForegroundWindow();
         if (action == HotkeyAction.PasteLatest) _ = PasteCurrentAsync(foreground);
         else if (action == HotkeyAction.ShowHistory) ToggleHistory(foreground);
+        else if (action == HotkeyAction.ConvertClipboard) _ = ConvertClipboardAsync();
         else if (action.NumberOf() > 0) _ = PasteNumberAsync(action.NumberOf(), foreground);
     }
 
@@ -165,14 +169,20 @@ public sealed class AppHost : ISettingsHost, IDisposable
         }
         // PlainClip の画面（設定画面など）が前面のときは開かない。
         if (WindowHelper.IsOwnWindow(foreground)) return;
-        ShowHistory(foreground);
+        ShowHistory(foreground, fromKeyboard: true);
     }
 
-    private void ShowHistory(IntPtr target)
+    /// <param name="fromKeyboard">
+    /// ショートカットで開いた（V2.3.0）。貼り付け先があれば、そのキャレットの左下（取れなければ貼り付け先の中央）に出す。
+    /// トレイから開いた・貼り付け先が無いときはマウス位置の近く。
+    /// </param>
+    private void ShowHistory(IntPtr target, bool fromKeyboard)
     {
         if (_historyWindow is null) return;
         _historyTarget = target;
-        _historyWindow.ShowHistory(_history.Items, copyOnly: !WindowHelper.IsPasteTarget(target), _currentClipText);
+        var copyOnly = !WindowHelper.IsPasteTarget(target);
+        var anchor = fromKeyboard && !copyOnly ? PopupAnchors.ForKeyboard(target) : PopupAnchors.ForCursor();
+        _historyWindow.ShowHistory(_history.Items, copyOnly, _currentClipText, anchor);
     }
 
     /// <summary>
@@ -239,7 +249,13 @@ public sealed class AppHost : ISettingsHost, IDisposable
 
     private async void OnItemChosen(ClipItem item, bool copyOnly, int triggerVk)
     {
-        if (_historyWindow is null || _paste is null || _clipboard is null || _pasting) return;
+        if (_historyWindow is null || _paste is null || _clipboard is null) return;
+        if (_pasting)
+        {
+            // 貼り付け・変換の処理中は受け付けない。一覧の選択中の状態を戻す（V2.3.0。戻さないと他のウィンドウのクリックで閉じなかった）。
+            _historyWindow.CancelChoice();
+            return;
+        }
         var target = _historyTarget;
         var pasteMode = !copyOnly && !_historyWindow.CopyOnlyMode;
         _historyWindow.HideWindow(restoreFocus: false);
@@ -264,6 +280,57 @@ public sealed class AppHost : ISettingsHost, IDisposable
         catch (Exception ex)
         {
             ErrorLog.Write("貼り付けに失敗", ex);
+            NoticeWindow.Display(Strings.NoticeFailed);
+        }
+        finally
+        {
+            _pasting = false;
+        }
+    }
+
+    /// <summary>
+    /// クリップボードを書式なしに変換する（V2.3.0。仕様書 §28）。貼り付けない（Ctrl+V を送らない・前面のウィンドウを変えない）。
+    /// トレイのメニューと通常ショートカットから呼ぶ。判断は Core の <see cref="ClipboardConversion"/>。
+    /// </summary>
+    private async Task ConvertClipboardAsync()
+    {
+        if (_clipboard is null || _pasting) return;
+        _pasting = true;
+        try
+        {
+            var source = await _clipboard.ReadCurrentAsync();
+            switch (ClipboardConversion.Decide(source, GetClipboardSequenceNumber()))
+            {
+                case ConversionAction.NoText:
+                    NoticeWindow.Display(DescribeNoText(source.Kind));
+                    break;
+                case ConversionAction.AlreadyPlain:
+                    NoticeWindow.Display(Strings.NoticeAlreadyPlain);
+                    break;
+                case ConversionAction.Changed:
+                    NoticeWindow.Display(Strings.NoticeClipboardChanged, seconds: 3.5);
+                    break;
+                default:
+                    // 開けるのを待つ間に他のアプリが変えた場合も上書きしないよう、照合は書き込みの直前（開いた状態）でも行う。
+                    switch (await _clipboard.ReplaceTextAsync(source.Text, source.Protection, source.Sequence))
+                    {
+                        case ClipboardWriteStatus.Written:
+                            SetCurrentClipText(source.Sensitive ? null : source.Text);
+                            NoticeWindow.Display(Strings.NoticeConverted);
+                            break;
+                        case ClipboardWriteStatus.Changed:
+                            NoticeWindow.Display(Strings.NoticeClipboardChanged, seconds: 3.5);
+                            break;
+                        default:
+                            NoticeWindow.Display(Strings.NoticeFailed);
+                            break;
+                    }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("クリップボードの変換に失敗", ex);
             NoticeWindow.Display(Strings.NoticeFailed);
         }
         finally
@@ -313,8 +380,12 @@ public sealed class AppHost : ISettingsHost, IDisposable
     private void OnHistoryChanged()
     {
         RefreshHistoryWindow();
-        _tray?.UpdateStatus(DescribeShowHistoryTrigger(), _history.Count);
+        UpdateTray();
     }
+
+    /// <summary>トレイのツールチップ・メニューのキーの表示・停止中の表示を今の状態にする。</summary>
+    private void UpdateTray() =>
+        _tray?.UpdateStatus(DescribeShowHistoryTrigger(), DescribeConvertTrigger(), _history.Count, tapStopped: _hookSupervisor is { MonitoringActive: false });
 
     private void RefreshHistoryWindow() => _historyWindow?.Refresh(_history.Items, _currentClipText);
 
@@ -346,7 +417,8 @@ public sealed class AppHost : ISettingsHost, IDisposable
         var history = _settings.ShowHistoryTrigger == TriggerMode.Shortcut ? _settings.ShowHistoryShortcutValue.ToString() : null;
         var modifiers = _settings.NumberPasteModifiersValue;
         var numbers = modifiers == KeyModifiers.None ? null : string.Format(Strings.NumberKeysFormat, NumberPaste.Format(modifiers));
-        return new GuideContent(paste, history, numbers);
+        var convert = _settings.ConvertClipboardTrigger == TriggerMode.Shortcut ? _settings.ConvertClipboardShortcutValue.ToString() : null;
+        return new GuideContent(paste, history, numbers, convert);
     }
 
     private void ShowSettings()
@@ -417,6 +489,7 @@ public sealed class AppHost : ISettingsHost, IDisposable
         _hotkeys?.Apply(
             _settings.PasteLatestTrigger == TriggerMode.Shortcut ? _settings.PasteLatestShortcutValue : Shortcut.None,
             _settings.ShowHistoryTrigger == TriggerMode.Shortcut ? _settings.ShowHistoryShortcutValue : Shortcut.None,
+            _settings.ConvertClipboardTrigger == TriggerMode.Shortcut ? _settings.ConvertClipboardShortcutValue : Shortcut.None,
             _settings.NumberPasteModifiersValue);
     }
 
@@ -547,6 +620,9 @@ public sealed class AppHost : ISettingsHost, IDisposable
 
     private string DescribeShowHistoryTrigger() =>
         _settings.ShowHistoryTrigger == TriggerMode.Shortcut ? _settings.ShowHistoryShortcutValue.ToString() : "";
+
+    private string DescribeConvertTrigger() =>
+        _settings.ConvertClipboardTrigger == TriggerMode.Shortcut ? _settings.ConvertClipboardShortcutValue.ToString() : "";
 
     private string FailedHotkeys() => string.Join(", ",
         HotkeyActions.All

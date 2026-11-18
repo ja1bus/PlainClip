@@ -11,7 +11,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>PlainClip</RootNamespace>
     <AssemblyName>PlainClip</AssemblyName>
-    <Version>2.2.1</Version>
+    <Version>2.3.0</Version>
     <ApplicationIcon>Resources/icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!--

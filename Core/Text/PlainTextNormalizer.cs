@@ -17,7 +17,7 @@ public static class PlainTextNormalizer
     /// U+00A0 NO-BREAK SPACE（Outlook / ブラウザの &amp;nbsp;）、U+2007 FIGURE SPACE、U+202F NARROW NO-BREAK SPACE。
     /// 全角スペース（U+3000）は日本語の文章で意味を持つため変えない。ゼロ幅文字も絵文字の結合などに使われるため変えない。
     /// </summary>
-    private static bool IsSpecialSpace(char c) => c is ' ' or ' ' or ' ';
+    private static bool IsSpecialSpace(char c) => c is '\u00A0' or '\u2007' or '\u202F';
 
     /// <summary>正規化する。結果が空（または長すぎる）なら null（履歴に入れない）。</summary>
     public static string? Normalize(string? text)
@@ -30,7 +30,7 @@ public static class PlainTextNormalizer
         if (end == 0 || end > MaxLength) return null;
 
         var span = text.AsSpan(0, end);
-        if (span.IndexOfAny(' ', ' ', ' ') < 0)
+        if (span.IndexOfAny('\u00A0', '\u2007', '\u202F') < 0)
             return end == text.Length ? text : span.ToString();
 
         var sb = new StringBuilder(end);

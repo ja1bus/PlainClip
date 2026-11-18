@@ -69,6 +69,7 @@ public interface ISettingsHost
 /// 設定画面（PROJECT.md「設定画面」）。
 ///  - クリップボードを書式なしで貼り付け: キーを 2 回（左右の Shift・Ctrl から選ぶ） / 通常ショートカット / 無効
 ///  - 履歴一覧を表示: 通常ショートカット / 無効（既定は無効。トレイのクリックで表示できる）
+///  - クリップボードを書式なしに変換（V2.3.0）: 通常ショートカット / 無効（既定は無効。トレイのメニューから実行できる）
 ///  - 数字ショートカット: 使わない（既定） / 修飾キー＋1～9（候補から選ぶ）
 ///  - ショートカットは既定で空欄。入力・選択した時点で空きを確認し、登録できる場合だけ OK / 適用を押せる。
 ///  - 今の設定から変更が無いときは［適用］を押せない（V2.2.0）。［OK］は変更が無ければそのまま閉じる。
@@ -100,7 +101,7 @@ public partial class SettingsWindow : Window
         NumberCombo.ItemsSource = NumberPaste.Choices.Select(m => new Choice<KeyModifiers>(m, DescribeNumberChoice(m))).ToList();
         LanguageCombo.ItemsSource = UiLanguage.All.Select(v => new Choice<string>(v, UiLanguage.DisplayName(v))).ToList();
 
-        foreach (var box in new[] { PasteShortcutBox, HistoryShortcutBox })
+        foreach (var box in new[] { PasteShortcutBox, HistoryShortcutBox, ConvertShortcutBox })
         {
             // 入力中は今のショートカットを押しても機能が動かないよう一時解除し、他アプリに取られる組み合わせも拾えるようにする。
             box.CaptureStarted += (_, _) => BeginInput();
@@ -108,7 +109,8 @@ public partial class SettingsWindow : Window
         }
         PasteShortcutBox.ShortcutChanged += (_, _) => OnShortcutEdited(PasteShortcut);
         HistoryShortcutBox.ShortcutChanged += (_, _) => OnShortcutEdited(HistoryShortcut);
-        foreach (var radio in new[] { PasteDoubleTap, PasteShortcut, PasteDisabled, HistoryShortcut, HistoryDisabled })
+        ConvertShortcutBox.ShortcutChanged += (_, _) => OnShortcutEdited(ConvertShortcut);
+        foreach (var radio in new[] { PasteDoubleTap, PasteShortcut, PasteDisabled, HistoryShortcut, HistoryDisabled, ConvertShortcut, ConvertDisabled })
             radio.Checked += (_, _) => Evaluate();
         DoubleTapKeyCombo.SelectionChanged += (_, _) =>
         {
@@ -220,8 +222,11 @@ public partial class SettingsWindow : Window
         DoubleTapKeyCombo.SelectedIndex = Math.Max(0, DoubleTapKeys.All.ToList().IndexOf(s.DoubleTapKey));
         HistoryShortcut.IsChecked = s.ShowHistoryTrigger == TriggerMode.Shortcut;
         HistoryDisabled.IsChecked = s.ShowHistoryTrigger != TriggerMode.Shortcut;
+        ConvertShortcut.IsChecked = s.ConvertClipboardTrigger == TriggerMode.Shortcut;
+        ConvertDisabled.IsChecked = s.ConvertClipboardTrigger != TriggerMode.Shortcut;
         PasteShortcutBox.Shortcut = s.PasteLatestShortcutValue;
         HistoryShortcutBox.Shortcut = s.ShowHistoryShortcutValue;
+        ConvertShortcutBox.Shortcut = s.ConvertClipboardShortcutValue;
         NumberCombo.SelectedIndex = Math.Max(0, NumberPaste.Choices.ToList().IndexOf(s.NumberPasteModifiersValue));
 
         MaxCount.ItemsSource = CountChoices.Contains(s.MaxHistoryCount)
@@ -250,6 +255,7 @@ public partial class SettingsWindow : Window
     {
         if (PasteShortcutBox.IsKeyboardFocused) PasteShortcutBox.Shortcut = shortcut;
         else if (HistoryShortcutBox.IsKeyboardFocused) HistoryShortcutBox.Shortcut = shortcut;
+        else if (ConvertShortcutBox.IsKeyboardFocused) ConvertShortcutBox.Shortcut = shortcut;
     }
 
     private void OnHotkeyStatusChanged(object? sender, EventArgs e) => Evaluate();
@@ -261,10 +267,12 @@ public partial class SettingsWindow : Window
         UpdateDoubleTapNote();
         var paste = PasteShortcut.IsChecked == true ? PasteShortcutBox.Shortcut : Shortcut.None;
         var history = HistoryShortcut.IsChecked == true ? HistoryShortcutBox.Shortcut : Shortcut.None;
-        var pasteOk = EvaluateOne(HotkeyAction.PasteLatest, PasteShortcut.IsChecked == true, PasteShortcutBox.Shortcut, history, PasteStatus);
-        var historyOk = EvaluateOne(HotkeyAction.ShowHistory, HistoryShortcut.IsChecked == true, HistoryShortcutBox.Shortcut, paste, HistoryStatus);
-        var numbersOk = EvaluateNumbers(SelectedNumberModifiers, paste, history);
-        OkButton.IsEnabled = pasteOk && historyOk && numbersOk;
+        var convert = ConvertShortcut.IsChecked == true ? ConvertShortcutBox.Shortcut : Shortcut.None;
+        var pasteOk = EvaluateOne(HotkeyAction.PasteLatest, PasteShortcut.IsChecked == true, PasteShortcutBox.Shortcut, [history, convert], PasteStatus);
+        var historyOk = EvaluateOne(HotkeyAction.ShowHistory, HistoryShortcut.IsChecked == true, HistoryShortcutBox.Shortcut, [paste, convert], HistoryStatus);
+        var convertOk = EvaluateOne(HotkeyAction.ConvertClipboard, ConvertShortcut.IsChecked == true, ConvertShortcutBox.Shortcut, [paste, history], ConvertStatus);
+        var numbersOk = EvaluateNumbers(SelectedNumberModifiers, [paste, history, convert]);
+        OkButton.IsEnabled = pasteOk && historyOk && convertOk && numbersOk;
         ApplyButton.IsEnabled = OkButton.IsEnabled && HasChanges();
     }
 
@@ -281,9 +289,11 @@ public partial class SettingsWindow : Window
             : TriggerMode.Disabled;
         s.DoubleTapKey = SelectedTapKey;
         s.ShowHistoryTrigger = HistoryShortcut.IsChecked == true ? TriggerMode.Shortcut : TriggerMode.Disabled;
+        s.ConvertClipboardTrigger = ConvertShortcut.IsChecked == true ? TriggerMode.Shortcut : TriggerMode.Disabled;
         // 使わない側の入力値も、正しければ次回のために保存する（空欄なら未割当）。
         s.PasteLatestShortcut = ToSetting(PasteShortcutBox.Shortcut);
         s.ShowHistoryShortcut = ToSetting(HistoryShortcutBox.Shortcut);
+        s.ConvertClipboardShortcut = ToSetting(ConvertShortcutBox.Shortcut);
         s.NumberPasteModifiers = NumberPaste.Format(SelectedNumberModifiers);
         if (MaxCount.SelectedItem is int count) s.MaxHistoryCount = count;
         s.MergeDuplicates = MergeDuplicates.IsChecked == true;
@@ -300,8 +310,8 @@ public partial class SettingsWindow : Window
             SetStatus(DoubleTapNote, "", NeutralBrush);
     }
 
-    /// <summary>1 機能分。ショートカット方式でなければ常に OK。</summary>
-    private bool EvaluateOne(HotkeyAction action, bool shortcutMode, Shortcut shortcut, Shortcut other, TextBlock status)
+    /// <summary>1 機能分。ショートカット方式でなければ常に OK。<paramref name="others"/> は他の 2 機能のショートカット（使わなければ None）。</summary>
+    private bool EvaluateOne(HotkeyAction action, bool shortcutMode, Shortcut shortcut, Shortcut[] others, TextBlock status)
     {
         if (!shortcutMode)
         {
@@ -319,7 +329,7 @@ public partial class SettingsWindow : Window
             SetStatus(status, Shortcut.Describe(validation), ErrorBrush);
             return false;
         }
-        if (shortcut == other)
+        if (others.Contains(shortcut))
         {
             SetStatus(status, string.Format(Strings.SettingsSameAsOtherFormat, shortcut), ErrorBrush);
             return false;
@@ -346,7 +356,7 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>数字ショートカット 1～9 の空きをまとめて確認する。1 つでも使えなければ OK / 適用を押せない。</summary>
-    private bool EvaluateNumbers(KeyModifiers modifiers, Shortcut paste, Shortcut history)
+    private bool EvaluateNumbers(KeyModifiers modifiers, Shortcut[] functions)
     {
         if (modifiers == KeyModifiers.None)
         {
@@ -356,8 +366,8 @@ public partial class SettingsWindow : Window
         var problems = new List<string>();
         foreach (var shortcut in NumberPaste.All(modifiers))
         {
-            // 他の 2 機能と同じキーは、その機能の欄で知らせる。
-            if (shortcut == paste || shortcut == history) continue;
+            // 他の 3 機能と同じキーは、その機能の欄で知らせる。
+            if (functions.Contains(shortcut)) continue;
             var error = _host.ProbeShortcut(shortcut);
             if (error != 0) problems.Add(shortcut.ToString());
         }
@@ -367,7 +377,7 @@ public partial class SettingsWindow : Window
             SetStatus(NumberStatus, string.Format(Strings.SettingsNumberInUseFormat, string.Join(", ", problems)), ErrorBrush);
             return false;
         }
-        if (NumberPaste.NumberOf(modifiers, paste) > 0 || NumberPaste.NumberOf(modifiers, history) > 0)
+        if (functions.Any(f => NumberPaste.NumberOf(modifiers, f) > 0))
         {
             SetStatus(NumberStatus, string.Format(Strings.SettingsNumberConflictFormat, keys), ErrorBrush);
             return false;

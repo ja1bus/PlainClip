@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using PlainClip.Core.History;
+using PlainClip.Core.Layout;
 using PlainClip.Core.Localization;
 using PlainClip.Services;
 using static PlainClip.Interop.NativeMethods;
@@ -57,7 +58,7 @@ public sealed class HistoryRow
 
 /// <summary>
 /// 履歴ポップアップ（PROJECT.md「履歴ポップアップ」）。1 つのインスタンスを隠して再利用し、表示を速くする。
-/// マウス位置の近くに出し、最新（1 番目）を選択した状態で開く。キーボード操作はウィンドウ自体で受ける
+/// 開き方に合わせた位置（マウス位置の近く・キャレットの左下・貼り付け先の中央。V2.3.0）に出し、最新（1 番目）を選択した状態で開く。キーボード操作はウィンドウ自体で受ける
 /// （一覧の項目にフォーカスを持たせないので、↑↓ Enter Delete Esc 1～9 が常に同じ動きになる）。
 /// 他のウィンドウをクリックする等で非アクティブになったら閉じる。
 /// 貼り付け先が無いとき（タスクトレイから開いた等）は「コピー」として表示する（V2.0.0）。
@@ -76,6 +77,8 @@ public partial class HistoryWindow : Window
     private bool _choosing;
     private bool _positionPending;
     private string? _currentText;
+    /// <summary>表示した基準（拡大率の違うモニターへ移ったときも同じ基準で配置し直す。V2.3.0）。</summary>
+    private PopupAnchor? _anchor;
 
     public HistoryWindow()
     {
@@ -89,8 +92,13 @@ public partial class HistoryWindow : Window
         };
         DpiChanged += (_, _) =>
         {
-            // 拡大率の違うモニターへ移すと大きさが変わるので、もう一度画面内に収める。
-            if (_positionPending) Dispatcher.BeginInvoke(PositionNearCursor);
+            // 拡大率の違うモニターへ移すと大きさが変わるので、上限を表示先のモニターで決め直してから、もう一度画面内に収める。
+            if (_positionPending) Dispatcher.BeginInvoke(() =>
+            {
+                FitToAnchor();
+                UpdateLayout();
+                PositionWindow();
+            });
         };
     }
 
@@ -117,14 +125,17 @@ public partial class HistoryWindow : Window
     /// <param name="items">履歴（先頭 = 最新）。</param>
     /// <param name="copyOnly">貼り付け先が無い。</param>
     /// <param name="currentText">現在のクリップボードの本文（印を付ける）。テキストでなければ null。</param>
-    public void ShowHistory(IReadOnlyList<ClipItem> items, bool copyOnly, string? currentText)
+    /// <param name="anchor">出す位置の基準（<see cref="PopupAnchors"/>）。null ならマウス位置の近く。</param>
+    public void ShowHistory(IReadOnlyList<ClipItem> items, bool copyOnly, string? currentText, PopupAnchor? anchor = null)
     {
+        // 基準を先に決め、大きさの上限は表示先（基準の作業領域）のモニターで決める（V2.3.0。マウスと別のモニターに出すことがある）。
+        _anchor = anchor ?? PopupAnchors.ForCursor();
         ApplyLook();
         CopyOnlyMode = copyOnly;
         _currentText = currentText;
         CopyOnlyBar.Visibility = copyOnly ? Visibility.Visible : Visibility.Collapsed;
         MenuPaste.Visibility = copyOnly ? Visibility.Collapsed : Visibility.Visible;
-        MenuCopy.InputGestureText = copyOnly ? "Enter" : "";
+        MenuCopy.InputGestureText = copyOnly ? "Enter" : "Ctrl+Enter"; // V2.3.0: 貼り付けのときは Ctrl+Enter でコピーだけ
         SetItems(items, selectIndex: 0);
         _choosing = false;
 
@@ -136,7 +147,7 @@ public partial class HistoryWindow : Window
         }
         UpdateLayout();
         _positionPending = true;
-        PositionNearCursor();
+        PositionWindow();
         WindowHelper.ForceForeground(Handle);
         Activate();
         Focus();
@@ -159,6 +170,9 @@ public partial class HistoryWindow : Window
         Hide();
         if (restoreFocus) Cancelled?.Invoke();
     }
+
+    /// <summary>選んだ項目を受け付けなかった（貼り付け中など）。選択中の状態を戻し、他のウィンドウのクリックで閉じるようにする（V2.3.0）。</summary>
+    public void CancelChoice() => _choosing = false;
 
     public void CloseForExit()
     {
@@ -199,7 +213,8 @@ public partial class HistoryWindow : Window
                 if (count > 0) Select(count - 1);
                 break;
             case Key.Enter:
-                Choose(List.SelectedIndex, copyOnly: false, KeyInterop.VirtualKeyFromKey(key));
+                // Ctrl+Enter はクリップボードへコピーだけ（V2.3.0。コピーのみのときは Enter と同じ）。
+                Choose(List.SelectedIndex, copyOnly: Keyboard.Modifiers == ModifierKeys.Control, KeyInterop.VirtualKeyFromKey(key));
                 break;
             case Key.Delete:
                 if (List.SelectedItem is HistoryRow row) DeleteRequested?.Invoke(row.Item);
@@ -224,8 +239,15 @@ public partial class HistoryWindow : Window
         Width = BaseWidth * scale;
         List.MaxHeight = 420 * scale;
         PreviewBody.MaxHeight = 150 * scale;
-        UiLook.FitToWorkArea(this); // 一覧は作業領域に収まる高さまで（あふれた分はスクロール。V2.0.1）
+        FitToAnchor(); // 一覧は作業領域に収まる高さまで（あふれた分はスクロール。V2.0.1）
         ApplyColors(UiLook.HighContrast);
+    }
+
+    /// <summary>幅・高さの上限を、表示先の作業領域（基準が無ければマウスのあるモニター）に合わせる。</summary>
+    private void FitToAnchor()
+    {
+        if (_anchor is { } anchor) UiLook.FitToWorkArea(this, anchor.WorkArea);
+        else UiLook.FitToWorkArea(this);
     }
 
     private void ApplyColors(bool highContrast)
@@ -312,22 +334,70 @@ public partial class HistoryWindow : Window
         if (List.SelectedItem is HistoryRow row) DeleteRequested?.Invoke(row.Item);
     }
 
-    /// <summary>マウス位置の右下に出し、作業領域（タスクバーを除く）からはみ出すなら内側へずらす。座標は物理ピクセル。</summary>
-    private void PositionNearCursor()
+    /// <summary>基準（<see cref="_anchor"/>）に合わせて置き、作業領域からはみ出すなら内側へずらす。座標は物理ピクセル。</summary>
+    private void PositionWindow()
     {
         var hwnd = Handle;
-        if (hwnd == IntPtr.Zero || !GetCursorPos(out var cursor) || !GetWindowRect(hwnd, out var rect)) return;
-        var info = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>() };
-        if (!GetMonitorInfo(MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST), ref info)) return;
-        var work = info.rcWork;
-        var width = rect.Right - rect.Left;
-        var height = rect.Bottom - rect.Top;
-        const int offset = 8;
-        var x = cursor.X + offset;
-        var y = cursor.Y + offset;
-        if (x + width > work.Right) x = Math.Max(work.Left, cursor.X - width - offset);
-        if (y + height > work.Bottom) y = Math.Max(work.Top, work.Bottom - height);
-        x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - width));
+        if (hwnd == IntPtr.Zero || _anchor is not { } anchor || !GetWindowRect(hwnd, out var rect)) return;
+        var (x, y) = PopupPlacement.Place(anchor, rect.Right - rect.Left, rect.Bottom - rect.Top);
         SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+}
+
+/// <summary>
+/// 履歴一覧を出す基準を Windows から集める（V2.3.0。仕様書 §11「表示位置」）。位置の計算は Core の <see cref="PopupPlacement"/>。
+/// </summary>
+public static class PopupAnchors
+{
+    /// <summary>マウス位置（作業領域はマウスのあるモニター）。取れなければ null。</summary>
+    public static PopupAnchor? ForCursor()
+    {
+        if (!GetCursorPos(out var cursor)) return null;
+        if (WorkAreaOf(MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST)) is not { } work) return null;
+        return new PopupAnchor(PopupAnchorKind.Cursor, new PixelRect(cursor.X, cursor.Y, cursor.X, cursor.Y), work);
+    }
+
+    /// <summary>
+    /// キーボードで開いたとき: 貼り付け先のスレッドのキャレットが取れればキャレット、取れなければ貼り付け先のウィンドウの中央。
+    /// 作業領域は貼り付け先のウィンドウのあるモニター。ウィンドウの位置が取れなければマウス位置。
+    /// </summary>
+    public static PopupAnchor? ForKeyboard(IntPtr target)
+    {
+        var root = WindowHelper.RootOf(target);
+        if (root == IntPtr.Zero || !GetWindowRect(root, out var rect)) return ForCursor();
+        if (WorkAreaOf(MonitorFromWindow(root, MONITOR_DEFAULTTONEAREST)) is not { } work) return ForCursor();
+        var window = new PixelRect(rect.Left, rect.Top, rect.Right, rect.Bottom);
+        return CaretOf(root, window) is { } caret
+            ? new PopupAnchor(PopupAnchorKind.Caret, caret, work)
+            : new PopupAnchor(PopupAnchorKind.WindowCenter, window, work);
+    }
+
+    /// <summary>Win32 のキャレットの画面座標。無い・座標がそのウィンドウの外（DPI の換算違いなど）なら null。</summary>
+    private static PixelRect? CaretOf(IntPtr root, PixelRect window)
+    {
+        var thread = GetWindowThreadProcessId(root, out _);
+        if (thread == 0) return null;
+        var info = new GUITHREADINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<GUITHREADINFO>() };
+        if (!GetGUIThreadInfo(thread, ref info) || info.hwndCaret == IntPtr.Zero || info.rcCaret.Bottom <= info.rcCaret.Top) return null;
+        // rcCaret はキャレットのウィンドウの論理座標。DPI に対応していないアプリ（拡大表示されている）では、
+        // クライアント領域の左上（物理座標）からのずれを、モニターの DPI ÷ ウィンドウの DPI 倍にして物理座標へ直す（V2.3.0）。
+        var origin = new POINT();
+        if (!ClientToScreen(info.hwndCaret, ref origin)) return null;
+        var windowDpi = GetDpiForWindow(info.hwndCaret);
+        var monitor = MonitorFromWindow(info.hwndCaret, MONITOR_DEFAULTTONEAREST);
+        if (windowDpi == 0 || monitor == IntPtr.Zero || GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out var monitorDpi, out _) != 0 || monitorDpi == 0)
+            return null;
+        var logical = new PixelRect(info.rcCaret.Left, info.rcCaret.Top, info.rcCaret.Right, info.rcCaret.Bottom);
+        var caret = PopupPlacement.CaretOnScreen(logical, origin.X, origin.Y, windowDpi, monitorDpi);
+        var inside = caret.Left >= window.Left && caret.Left < window.Right && caret.Top >= window.Top && caret.Bottom <= window.Bottom;
+        return inside ? caret : null;
+    }
+
+    private static PixelRect? WorkAreaOf(IntPtr monitor)
+    {
+        var info = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return null;
+        var w = info.rcWork;
+        return new PixelRect(w.Left, w.Top, w.Right, w.Bottom);
     }
 }

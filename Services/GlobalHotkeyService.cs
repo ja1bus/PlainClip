@@ -6,38 +6,6 @@ using static PlainClip.Interop.NativeMethods;
 
 namespace PlainClip.Services;
 
-/// <summary>ショートカットで呼ぶ機能。値は RegisterHotKey の ID。Number1～Number9 は数字ショートカット（V2.0.0）。</summary>
-public enum HotkeyAction
-{
-    PasteLatest = 1,
-    ShowHistory = 2,
-    Number1 = 11,
-    Number2,
-    Number3,
-    Number4,
-    Number5,
-    Number6,
-    Number7,
-    Number8,
-    Number9,
-}
-
-public static class HotkeyActions
-{
-    /// <summary>登録する順（先に登録したものが優先。同じキーは後の機能が「重複」で失敗する）。</summary>
-    public static readonly IReadOnlyList<HotkeyAction> All =
-        [HotkeyAction.PasteLatest, HotkeyAction.ShowHistory, .. Numbers()];
-
-    public static IEnumerable<HotkeyAction> Numbers() =>
-        Enumerable.Range(1, NumberPaste.Count).Select(NumberAction);
-
-    public static HotkeyAction NumberAction(int number) => (HotkeyAction)((int)HotkeyAction.Number1 + number - 1);
-
-    /// <summary>数字ショートカットなら番号（1～9）、それ以外は 0。</summary>
-    public static int NumberOf(this HotkeyAction action) =>
-        action is >= HotkeyAction.Number1 and <= HotkeyAction.Number9 ? action - HotkeyAction.Number1 + 1 : 0;
-}
-
 public enum HotkeyStatus
 {
     /// <summary>この機能はショートカット方式ではない。</summary>
@@ -109,10 +77,11 @@ public sealed class GlobalHotkeyService : IDisposable
     /// すべての機能のショートカットを差し替えて登録し直す（使わない機能は <see cref="Shortcut.None"/>、
     /// 数字ショートカットを使わないなら <paramref name="numberModifiers"/> = None）。
     /// </summary>
-    public void Apply(Shortcut pasteLatest, Shortcut showHistory, KeyModifiers numberModifiers)
+    public void Apply(Shortcut pasteLatest, Shortcut showHistory, Shortcut convertClipboard, KeyModifiers numberModifiers)
     {
         _wanted[HotkeyAction.PasteLatest] = pasteLatest;
         _wanted[HotkeyAction.ShowHistory] = showHistory;
+        _wanted[HotkeyAction.ConvertClipboard] = convertClipboard;
         for (var n = 1; n <= NumberPaste.Count; n++)
             _wanted[HotkeyActions.NumberAction(n)] = numberModifiers == KeyModifiers.None ? Shortcut.None : NumberPaste.For(numberModifiers, n);
         if (_suspendCount > 0) MarkSuspended();

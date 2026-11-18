@@ -7,7 +7,7 @@ namespace PlainClip.Core.Input;
 /// ダブルタップに使うキー（V2.0.0。PROJECT.md「ダブルタップ」）。通常の入力と衝突しにくい修飾キーだけを選べる。
 /// Alt は 1 回押すだけで多くのアプリのメニューにフォーカスが移るため候補にしない。
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<DoubleTapKey>))]
+[JsonConverter(typeof(PlainClip.Core.Settings.LenientEnumConverter<DoubleTapKey>))] // 未知の名前でも全設定を壊さない（V2.3.0）
 public enum DoubleTapKey
 {
     LeftShift,

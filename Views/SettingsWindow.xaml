@@ -70,6 +70,16 @@
                 <RadioButton x:Name="HistoryDisabled" GroupName="History" Content="{x:Static l:Strings.SettingsHistoryDisabled}" />
                 <TextBlock x:Name="HistoryStatus" Style="{StaticResource Status}" />
 
+                <!-- クリップボードを書式なしに変換（V2.3.0。貼り付けない。トレイのメニューからは常に使える） -->
+                <TextBlock Style="{StaticResource Heading}" Text="{x:Static l:Strings.SettingsConvertHeading}" Margin="0,16,0,6" />
+                <TextBlock Style="{StaticResource Note}" Margin="12,0,0,4" Text="{x:Static l:Strings.SettingsConvertNote}" />
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton x:Name="ConvertShortcut" GroupName="Convert" Content="{x:Static l:Strings.SettingsShortcut}" />
+                    <v:ShortcutBox x:Name="ConvertShortcutBox" MinWidth="150" Margin="10,0,0,0" Padding="2" />
+                </StackPanel>
+                <RadioButton x:Name="ConvertDisabled" GroupName="Convert" Content="{x:Static l:Strings.SettingsConvertDisabled}" />
+                <TextBlock x:Name="ConvertStatus" Style="{StaticResource Status}" />
+
                 <!-- 長い説明は畳んでおき、読みたいときだけ開く（V2.0.0） -->
                 <Expander Style="{StaticResource Details}">
                     <TextBlock Style="{StaticResource Note}" Margin="18,2,0,0" Text="{x:Static l:Strings.SettingsShortcutNote}" />

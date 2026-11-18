@@ -110,7 +110,7 @@ Details: {2}</value>
     <value>Esc Close</value>
   </data>
   <data name="HistoryHintPaste" xml:space="preserve">
-    <value>Enter Paste · Del Delete · Esc Close</value>
+    <value>Enter Paste · Ctrl+Enter Copy · Del Delete · Esc Close</value>
   </data>
   <data name="HistoryLinesFormat" xml:space="preserve">
     <value>{0} lines</value>
@@ -328,7 +328,7 @@ URL: {1}</value>
     <value>× {0} is the same as a number shortcut.</value>
   </data>
   <data name="SettingsSameAsOtherFormat" xml:space="preserve">
-    <value>× {0} is the same as the other function.</value>
+    <value>× {0} is the same as another function.</value>
   </data>
   <data name="SettingsSaveFailedFormat" xml:space="preserve">
     <value>Could not save the settings: {0}
@@ -422,5 +422,35 @@ Location:
 {0}
 
 {1}</value>
+  </data>
+  <data name="TrayConvertClipboard" xml:space="preserve">
+    <value>Convert clipboard to plain text</value>
+  </data>
+  <data name="TrayTooltipStoppedFormat" xml:space="preserve">
+    <value>PlainClip ({0} items in history) · Double-tap: stopped</value>
+  </data>
+  <data name="NoticeConverted" xml:space="preserve">
+    <value>Converted to plain text.</value>
+  </data>
+  <data name="NoticeAlreadyPlain" xml:space="preserve">
+    <value>The clipboard already contains plain text.</value>
+  </data>
+  <data name="SettingsConvertHeading" xml:space="preserve">
+    <value>Convert clipboard to plain text</value>
+  </data>
+  <data name="SettingsConvertNote" xml:space="preserve">
+    <value>Removes the formatting from the text on the clipboard without pasting it. Use it where PlainClip cannot paste (for example, apps running as administrator), then paste with Ctrl+V yourself.</value>
+  </data>
+  <data name="SettingsConvertDisabled" xml:space="preserve">
+    <value>Off (use the tray menu)</value>
+  </data>
+  <data name="GuideConvert" xml:space="preserve">
+    <value>Remove the formatting from the text on the clipboard without pasting it. Use it where PlainClip cannot paste (for example, apps running as administrator), then press Ctrl+V yourself.</value>
+  </data>
+  <data name="GuideConvertTrayKey" xml:space="preserve">
+    <value>From the tray menu</value>
+  </data>
+  <data name="GuideConvertShortcutFormat" xml:space="preserve">
+    <value>{0}, or from the tray menu</value>
   </data>
 </root>

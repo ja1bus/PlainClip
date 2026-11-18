@@ -5,7 +5,7 @@ using PlainClip.Core.Input;
 namespace PlainClip.Core.Settings;
 
 /// <summary>機能の呼び出し方法。各機能につき 1 つだけ選ぶ。</summary>
-[JsonConverter(typeof(JsonStringEnumConverter<TriggerMode>))]
+[JsonConverter(typeof(LenientEnumConverter<TriggerMode>))] // 未知の名前でも全設定を壊さない（V2.3.0）
 public enum TriggerMode
 {
     /// <summary>修飾キーのダブルタップ（「クリップボードを書式なしで貼り付け」だけで選べる。キーは <see cref="AppSettings.DoubleTapKey"/>）。</summary>
@@ -39,6 +39,14 @@ public sealed class AppSettings
 
     public string ShowHistoryShortcut { get; set; } = "";
 
+    /// <summary>
+    /// 「クリップボードを書式なしに変換」（V2.3.0。貼り付けない）の呼び出し方法。Shortcut / Disabled のみ。既定は無効（トレイのメニューからは常に使える）。
+    /// 項目が無い以前の設定ファイルは既定の無効で読む。
+    /// </summary>
+    public TriggerMode ConvertClipboardTrigger { get; set; } = TriggerMode.Disabled;
+
+    public string ConvertClipboardShortcut { get; set; } = "";
+
     /// <summary>数字ショートカットの修飾キー（V2.0.0。"Ctrl+Alt" 形式。<see cref="NumberPaste.Choices"/> のいずれか）。既定は空（使わない）。</summary>
     public string NumberPasteModifiers { get; set; } = "";
 
@@ -66,6 +74,10 @@ public sealed class AppSettings
         Shortcut.TryParse(ShowHistoryShortcut, out var s) ? s : Shortcut.None;
 
     [JsonIgnore]
+    public Shortcut ConvertClipboardShortcutValue =>
+        Shortcut.TryParse(ConvertClipboardShortcut, out var s) ? s : Shortcut.None;
+
+    [JsonIgnore]
     public KeyModifiers NumberPasteModifiersValue =>
         NumberPaste.TryParse(NumberPasteModifiers, out var m) ? m : KeyModifiers.None;
 
@@ -78,8 +90,10 @@ public sealed class AppSettings
         PasteLatestTrigger == other.PasteLatestTrigger
         && DoubleTapKey == other.DoubleTapKey
         && ShowHistoryTrigger == other.ShowHistoryTrigger
+        && ConvertClipboardTrigger == other.ConvertClipboardTrigger
         && Usable(PasteLatestShortcutValue) == Usable(other.PasteLatestShortcutValue)
         && Usable(ShowHistoryShortcutValue) == Usable(other.ShowHistoryShortcutValue)
+        && Usable(ConvertClipboardShortcutValue) == Usable(other.ConvertClipboardShortcutValue)
         && NumberPasteModifiersValue == other.NumberPasteModifiersValue
         && MaxHistoryCount == other.MaxHistoryCount
         && MergeDuplicates == other.MergeDuplicates

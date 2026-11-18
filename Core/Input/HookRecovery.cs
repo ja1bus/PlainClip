@@ -70,7 +70,10 @@ public sealed record HookReport(
 /// <param name="LastSeenTick">フックが最後に入力を受け取った時刻。まだ無ければ登録した時刻。</param>
 /// <param name="LastSystemInputTick">システム全体で最後に入力があった時刻（GetLastInputInfo）。</param>
 /// <param name="Observable">今の入力がフックに届くはずの状態か（前面が管理者のウィンドウ・ロック画面・UAC の画面のときは false）。</param>
-public readonly record struct HookSnapshot(bool KeyboardInstalled, uint LastSeenTick, uint LastSystemInputTick, bool Observable);
+/// <param name="MouseInstalled">
+/// マウスのフックを登録済みか（V2.3.0）。無いとマウスの移動はシステムの最終入力時刻に載るのにフックには届かないため、届いていないことを判定できない。
+/// </param>
+public readonly record struct HookSnapshot(bool KeyboardInstalled, uint LastSeenTick, uint LastSystemInputTick, bool Observable, bool MouseInstalled = true);
 
 /// <summary>監視の確認の結果。</summary>
 public enum HookCheck
@@ -133,6 +136,12 @@ public sealed class HookLivenessMonitor
             _suspectInput = null;
             return HookCheck.Healthy; // 登録されていない状態は、登録失敗の再試行の側で扱う
         }
+        if (!s.MouseInstalled)
+        {
+            // マウスのフックだけ失敗（V2.3.0）。マウスの移動が毎回「届いていない入力」に見えるので判定しない。
+            _suspectInput = null;
+            return HookCheck.NotObservable;
+        }
         if (!s.Observable)
         {
             // 管理者のウィンドウ・ロック画面への入力はフックに届かないのが正常。疑いも取り消す。
@@ -164,6 +173,43 @@ public sealed class HookLivenessMonitor
         _suspectInput = null;
         Recoveries++;
         return HookCheck.Recover;
+    }
+}
+
+/// <summary>
+/// 2 回押しの監視が止まっているか（V2.3.0。仕様書 §8「キー監視の回復」の「停止中の表示」）。トレイの表示に使う。
+/// 判定はフックのスレッドからの登録結果の報告だけで行う: キーボードのフックの登録に失敗した報告 → 停止中、
+/// 登録に成功した（新規・維持）報告 → 通常。2 回押しを使わない設定 → 常に通常。
+/// 監視の確認の「疑い」・検知による再登録の予定では変えない（ハンドルはあり、回復の途中のため）。
+/// </summary>
+public sealed class TapMonitoringState
+{
+    private bool _tap;
+
+    /// <summary>監視が動いている（または 2 回押しを使わない）なら true。</summary>
+    public bool Active { get; private set; } = true;
+
+    /// <summary>2 回押しを使うか（設定の反映）。使わなくなったら通常に戻す。状態が変わったら true。</summary>
+    public bool Configure(bool tap)
+    {
+        _tap = tap;
+        return tap ? false : Set(true);
+    }
+
+    /// <summary>登録結果の報告。状態が変わったら true。</summary>
+    public bool OnReport(HookReport report)
+    {
+        if (!_tap) return Set(true);
+        if (report.KeyboardFailed) return Set(false);
+        if (report.KeyboardActive) return Set(true);
+        return false;
+    }
+
+    private bool Set(bool active)
+    {
+        if (Active == active) return false;
+        Active = active;
+        return true;
     }
 }
 

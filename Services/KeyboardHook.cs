@@ -42,6 +42,7 @@ public sealed class KeyboardHook : IDisposable
     private const int MsgConfigure = WM_APP + 1;
     private const int MsgSendMask = WM_APP + 2;
     private const int MsgRefresh = WM_APP + 3;
+    private const int MsgCaptureEnded = WM_APP + 4;
 
     /// <summary>キーが押されている間は登録し直すのを待つ間隔と上限（離しだけが他アプリへ渡る・押下の取りこぼしを避ける）。計 5 秒まで。</summary>
     private const uint DeferStepMs = 200;
@@ -82,6 +83,7 @@ public sealed class KeyboardHook : IDisposable
     private int _lastMouseTick;
     private int _registeredTick;
     private volatile bool _keyboardInstalled;
+    private volatile bool _mouseInstalled;
     // 入力の種類・2 回押しの結果の集計（V2.1.1。HookStat の順。件数だけ）。
     private readonly long[] _stats = new long[HookStats.Count];
     // 各キーの最後の押下（キーリピートを含む）の時刻。押されたままの判定が古くないかを数えるため（フックのスレッドだけが触る）。
@@ -108,6 +110,9 @@ public sealed class KeyboardHook : IDisposable
 
     /// <summary>キーボードのフックを登録済みか（ハンドルがあるだけで、入力を受け取れている証拠ではない）。</summary>
     public bool KeyboardInstalled => _keyboardInstalled;
+
+    /// <summary>マウスのフックを登録済みか（V2.3.0。無いと監視の確認で入力が届いたかを判定できない）。</summary>
+    public bool MouseInstalled => _mouseInstalled;
 
     public long KeyboardCallbacks => Interlocked.Read(ref _keyboardCallbacks);
 
@@ -152,6 +157,9 @@ public sealed class KeyboardHook : IDisposable
     public void SetCapture(bool enabled)
     {
         _captureEnabled = enabled;
+        // 入力をやめたことはフックのスレッドへ別に知らせる。すぐ次の入力欄で再開しても（false → true が処理前に続いても）、
+        // やめた時点の横取りの記録を消す（V2.3.0。MsgConfigure だけでは処理時に最新の true を読み、記録が残り得た）。
+        if (!enabled) PostThreadMessage(_threadId, MsgCaptureEnded, IntPtr.Zero, IntPtr.Zero);
         PostThreadMessage(_threadId, MsgConfigure, IntPtr.Zero, IntPtr.Zero);
     }
 
@@ -185,7 +193,8 @@ public sealed class KeyboardHook : IDisposable
         {
             while (GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
             {
-                if (msg.message == MsgConfigure) ApplyHooks(HookRefreshReason.Configure, 0, force: false, 0);
+                if (msg.message == MsgCaptureEnded) Array.Clear(_swallowed);
+                else if (msg.message == MsgConfigure) ApplyHooks(HookRefreshReason.Configure, 0, force: false, 0);
                 else if (msg.message == MsgRefresh) RequestRefresh((HookRefreshReason)(int)msg.wParam, (int)msg.lParam);
                 else if (msg.message == WM_TIMER && msg.hwnd == IntPtr.Zero && (nuint)msg.wParam == (nuint)_deferTimer) OnDeferTimer();
                 else if (msg.message == MsgSendMask) SendMaskKey();
@@ -274,6 +283,9 @@ public sealed class KeyboardHook : IDisposable
     private void ApplyHooks(HookRefreshReason reason, int attempt, bool force, int deferredMs)
     {
         _tap = new DoubleTapDetector(_tapKey);
+        // ショートカット入力をやめたら、横取りしたキーの記録を消す（V2.3.0。横取りしていない間は離しで消えず、
+        // 残った記録が InputHeld() を true にして、以後の再登録を毎回最大 5 秒待たせていた）。
+        if (!_captureEnabled) Array.Clear(_swallowed);
         var module = GetModuleHandle(null);
         var wantKeyboard = _tapEnabled || _captureEnabled;
         var wantMouse = _tapEnabled;
@@ -331,6 +343,7 @@ public sealed class KeyboardHook : IDisposable
         else mouse = HookResult.NotNeeded;
 
         _keyboardInstalled = _keyboardHook != IntPtr.Zero;
+        _mouseInstalled = _mouseHook != IntPtr.Zero;
         if (keyboard == HookResult.Installed || mouse == HookResult.Installed) Volatile.Write(ref _registeredTick, Environment.TickCount);
         if (keyboardError != 0) ErrorLog.Write($"キーボードフックの導入に失敗（エラー {keyboardError}、理由 {reason}、試行 {attempt}）");
         if (mouseError != 0) ErrorLog.Write($"マウスフックの導入に失敗（エラー {mouseError}、理由 {reason}）");
@@ -347,6 +360,7 @@ public sealed class KeyboardHook : IDisposable
         if (_mouseHook != IntPtr.Zero) UnhookWindowsHookEx(_mouseHook);
         _keyboardHook = _mouseHook = IntPtr.Zero;
         _keyboardInstalled = false;
+        _mouseInstalled = false;
     }
 
     private unsafe IntPtr KeyboardProc(int nCode, IntPtr wParam, IntPtr lParam)

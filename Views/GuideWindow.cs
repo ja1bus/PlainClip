@@ -9,7 +9,8 @@ namespace PlainClip.Views;
 /// <param name="PasteKey">「クリップボードを書式なしで貼り付け」の操作（例: "左Shift を 2 回"）。無効なら null。</param>
 /// <param name="HistoryShortcut">履歴一覧のショートカット。無ければ null。</param>
 /// <param name="NumberKeys">数字ショートカット（例: "Ctrl+Alt+1～9"）。使わないなら null。</param>
-public sealed record GuideContent(string? PasteKey, string? HistoryShortcut, string? NumberKeys);
+/// <param name="ConvertShortcut">「クリップボードを書式なしに変換」のショートカット（V2.3.0）。無ければ null（トレイのメニューから）。</param>
+public sealed record GuideContent(string? PasteKey, string? HistoryShortcut, string? NumberKeys, string? ConvertShortcut);
 
 /// <summary>
 /// 使い方の小さな画面（V2.0.0。PROJECT.md「使い方の画面」）。初回起動時、2 回目の起動（スタートメニュー等から起動したとき）、
@@ -55,6 +56,8 @@ public sealed class GuideWindow : Window
             Strings.GuideHistory);
         AddRow(grid, content.NumberKeys ?? Strings.GuideNumberOffKey,
             content.NumberKeys is null ? Strings.GuideNumberOff : Strings.GuideNumber);
+        AddRow(grid, content.ConvertShortcut is null ? Strings.GuideConvertTrayKey : string.Format(Strings.GuideConvertShortcutFormat, content.ConvertShortcut),
+            Strings.GuideConvert);
         AddRow(grid, "Ctrl+V", Strings.GuideCtrlV);
         root.Children.Add(grid);
 

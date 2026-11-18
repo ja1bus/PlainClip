@@ -78,40 +78,68 @@ public sealed class ClipboardService : IDisposable
     /// </summary>
     public async Task<uint?> SetTextAsync(string text, ClipProtection protection = ClipProtection.None)
     {
+        var (status, sequence) = await WriteAsync(text, protection, expectedSequence: null);
+        return status == ClipboardWriteStatus.Written ? sequence : null;
+    }
+
+    /// <summary>
+    /// 読んだ内容を書き直す（「クリップボードを書式なしに変換」。V2.3.0）。<see cref="SetTextAsync"/> と同じく書き込むが、
+    /// クリップボードを開けた回ごとに、開いたまま（他のアプリが変えられない間に）シーケンス番号を <paramref name="expectedSequence"/> と
+    /// 照合し、違えば書き込まずに <see cref="ClipboardWriteStatus.Changed"/> を返す（開けるのを待つ間に他のアプリが入れた新しい内容を上書きしない）。
+    /// </summary>
+    public async Task<ClipboardWriteStatus> ReplaceTextAsync(string text, ClipProtection protection, uint expectedSequence) =>
+        (await WriteAsync(text, protection, expectedSequence)).Status;
+
+    /// <summary>書き込みの本体。成功したときの番号は、書き込み後に他のアプリが変えていたら 0（貼り付けの直前確認で一致しない値）。</summary>
+    private async Task<(ClipboardWriteStatus Status, uint Sequence)> WriteAsync(string text, ClipProtection protection, uint? expectedSequence)
+    {
         var markers = ClipProtectionRules.MarkersToWrite(protection);
         if ((markers.ExcludeFromMonitor && ExcludeFormat == 0) || (markers.CanIncludeInHistoryZero && CanIncludeInHistoryFormat == 0)
             || (markers.CanUploadToCloudZero && CanUploadFormat == 0))
         {
             ErrorLog.Write("保護指定の形式を登録できないため、クリップボードへ書き込みませんでした");
-            return null;
+            return (ClipboardWriteStatus.Failed, 0);
         }
+        var owner = _source.Handle;
         for (var attempt = 0; attempt < OpenRetryCount; attempt++)
         {
             if (attempt > 0) await Task.Delay(OpenRetryDelayMs);
-            if (!OpenClipboard(_source.Handle)) continue;
+            if (!OpenClipboard(owner)) continue;
             var ok = false;
+            var error = 0;
             try
             {
+                // 開いている間は他のアプリが内容を変えられないため、ここで照合すれば照合と書き込みの間に割り込まれない。
+                if (expectedSequence is { } expected && GetClipboardSequenceNumber() != expected)
+                    return (ClipboardWriteStatus.Changed, 0);
                 // 目印を先に置き、本文はその後。途中で失敗したら閉じる前に空にする（他のアプリが読めるのは閉じた後）。
                 ok = EmptyClipboard()
                     && (!markers.ExcludeFromMonitor || PutDword(ExcludeFormat, 0))
                     && (!markers.CanIncludeInHistoryZero || PutDword(CanIncludeInHistoryFormat, 0))
                     && (!markers.CanUploadToCloudZero || PutDword(CanUploadFormat, 0))
                     && PutUnicodeText(text);
-                if (!ok) EmptyClipboard();
+                if (!ok)
+                {
+                    error = Marshal.GetLastWin32Error();
+                    EmptyClipboard();
+                }
             }
             finally
             {
                 CloseClipboard();
             }
             // 自分の書き込みによる WM_CLIPBOARDUPDATE を履歴に入れないため、書き込み後の番号を覚える。
-            _ownSequence = GetClipboardSequenceNumber();
-            if (ok) return _ownSequence;
-            ErrorLog.Write($"クリップボードへの書き込みに失敗（エラー {Marshal.GetLastWin32Error()}）");
-            return null;
+            // 番号を読んだ後もまだ PlainClip が所有者なら、その番号は自分の書き込みのもの（閉じた直後に他のアプリが
+            // 書き込むと所有者が変わる）。他のアプリの番号を自分のものと誤って覚え、その内容を履歴から落とさないようにする。
+            var sequence = GetClipboardSequenceNumber();
+            var stillOurs = GetClipboardOwner() == owner;
+            if (stillOurs) _ownSequence = sequence;
+            if (ok) return (ClipboardWriteStatus.Written, stillOurs ? sequence : 0);
+            ErrorLog.Write($"クリップボードへの書き込みに失敗（エラー {error}）");
+            return (ClipboardWriteStatus.Failed, 0);
         }
         ErrorLog.Write("クリップボードを開けませんでした（他のアプリが使用中）");
-        return null;
+        return (ClipboardWriteStatus.Failed, 0);
     }
 
     /// <summary>
@@ -347,4 +375,17 @@ public sealed class ClipboardService : IDisposable
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint EnumClipboardFormats(uint format);
+}
+
+/// <summary><see cref="ClipboardService.ReplaceTextAsync"/> の結果（V2.3.0）。</summary>
+public enum ClipboardWriteStatus
+{
+    /// <summary>書き込んだ。</summary>
+    Written,
+
+    /// <summary>開けた時点で、読んだときから他のアプリが内容を変えていた。書き込んでいない。</summary>
+    Changed,
+
+    /// <summary>開けない・保護指定を付けられない等で書き込めなかった（本文は残さない）。</summary>
+    Failed,
 }

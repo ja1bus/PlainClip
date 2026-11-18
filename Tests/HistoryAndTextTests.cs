@@ -105,7 +105,7 @@ public class PlainTextNormalizerTests
     [Fact]
     public void ノーブレークスペース類だけを半角スペースにする()
     {
-        Assert.Equal("a b c d", PlainTextNormalizer.Normalize("a b c d"));
+        Assert.Equal("a b c d", PlainTextNormalizer.Normalize("a\u00A0b\u2007c\u202Fd"));
     }
 
     [Fact]

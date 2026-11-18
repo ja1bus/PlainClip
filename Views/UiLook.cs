@@ -53,7 +53,21 @@ public static class UiLook
     public static void FitToWorkArea(Window window)
     {
         if (!GetCursorPos(out var cursor)) return;
-        var monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+        FitToMonitor(window, MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST));
+    }
+
+    /// <summary>
+    /// 画面の幅・高さの上限を、指定した作業領域（物理ピクセル）のモニターに合わせる（V2.3.0）。
+    /// マウスと別のモニターに出す履歴一覧（貼り付け先のウィンドウのモニター）で使う。
+    /// </summary>
+    public static void FitToWorkArea(Window window, PlainClip.Core.Layout.PixelRect workArea)
+    {
+        var center = new POINT { X = workArea.Left + workArea.Width / 2, Y = workArea.Top + workArea.Height / 2 };
+        FitToMonitor(window, MonitorFromPoint(center, MONITOR_DEFAULTTONEAREST));
+    }
+
+    private static void FitToMonitor(Window window, IntPtr monitor)
+    {
         var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
         if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return;
         // Per-Monitor V2 では、そのモニターに置いたウィンドウの DIP = 物理ピクセル × 96 / モニターの DPI。

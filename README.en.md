@@ -9,9 +9,10 @@ This repository contains the source code of the publicly released PlainClip.
 ## Features
 
 - Press Left Shift twice to paste the text currently on the clipboard without formatting (fonts, colors, HTML, etc.). The key can be changed to Right Shift, Right Ctrl, Left Ctrl, or a regular shortcut, or turned off
-- Watches text copies and keeps only plain text in the history (10 items by default, 5–50). The contents of the Windows clipboard are not changed
-- Click the tray icon (or press a shortcut you register) to show the history list; paste with a click, `↑↓`+`Enter`, or `1`–`9`, and delete with `Delete`
+- Watches text copies and keeps only plain text in the history (10 items by default, 5–50). Watching never changes the clipboard contents
+- Click the tray icon or press a shortcut you register to show the history list. Select with a click, `↑↓`+`Enter`, or `1`–`9`. Opening from the tray copies only; press `Ctrl+V` at the destination. Opening with the shortcut at a paste destination pastes the selected item directly (the list appears below and to the left of the caret). `Ctrl+Enter` copies only, and `Delete` deletes
 - Number shortcuts (optional, e.g. `Ctrl+Alt+1`–`9`) paste a history item by its number without opening the list
+- "Convert clipboard to plain text" (tray menu, or an optional shortcut) removes only the formatting from the text on the clipboard without pasting. Where PlainClip cannot paste, such as apps running as administrator, press `Ctrl+V` yourself to paste plain text
 - Copies that password managers and other apps mark as "do not keep in history" are not added to the history (the same convention as Windows clipboard history)
 - Optional start when you sign in to Windows
 - English and Japanese display languages (follow the Windows display language or choose one in Settings)
@@ -37,7 +38,7 @@ This GitHub repository does not distribute executable files (binaries).
 1. When started, the app stays in the notification area. The "How to use PlainClip" window appears the first time.
 2. Copy text as usual.
 3. Where you want to paste, press Left Shift twice to paste the current clipboard text without formatting.
-4. To reuse text you copied earlier, click the tray icon and choose it from the history list.
+4. To reuse text you copied earlier, click the tray icon and choose it from the history list to copy it, then press `Ctrl+V` at the destination. If you register a shortcut to show the history and use it at a paste destination, choosing an item pastes it directly.
 5. Key assignments, history size, auto start, display language, and more can be changed from the tray icon's right-click menu → "Settings...". To exit, choose "Exit" in the same menu.
 
 For details, see the user manual.

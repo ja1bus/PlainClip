@@ -308,6 +308,38 @@ internal static class NativeMethods
     public static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
 
     [DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
+
+    // --- キャレットの位置（キーボードで開いた履歴一覧。V2.3.0） ---
+    [StructLayout(LayoutKind.Sequential)]
+    public struct GUITHREADINFO
+    {
+        public int cbSize;
+        public uint flags;
+        public IntPtr hwndActive;
+        public IntPtr hwndFocus;
+        public IntPtr hwndCapture;
+        public IntPtr hwndMenuOwner;
+        public IntPtr hwndMoveSize;
+        public IntPtr hwndCaret;
+        public RECT rcCaret;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool GetGUIThreadInfo(int threadId, ref GUITHREADINFO info);
+
+    [DllImport("user32.dll")]
+    public static extern bool ClientToScreen(IntPtr hWnd, ref POINT point);
+
+    /// <summary>ウィンドウが想定している DPI（DPI 非対応なら 96、システム DPI 対応ならシステムの DPI）。失敗は 0。</summary>
+    [DllImport("user32.dll")]
+    public static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    // --- トレイの停止中のアイコン（V2.3.0） ---
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("user32.dll")]
     public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 
     public const int MDT_EFFECTIVE_DPI = 0;

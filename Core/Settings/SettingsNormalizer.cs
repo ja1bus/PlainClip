@@ -22,9 +22,16 @@ public static class SettingsNormalizer
             fixes.Add($"ShowHistoryTrigger={s.ShowHistoryTrigger} → Disabled");
             s.ShowHistoryTrigger = TriggerMode.Disabled;
         }
+        // クリップボードを書式なしに変換（V2.3.0）はダブルタップを選べない。入力済みのキーは残す。
+        if (!Enum.IsDefined(s.ConvertClipboardTrigger) || s.ConvertClipboardTrigger == TriggerMode.DoubleTap)
+        {
+            fixes.Add($"ConvertClipboardTrigger={s.ConvertClipboardTrigger} → Disabled");
+            s.ConvertClipboardTrigger = TriggerMode.Disabled;
+        }
 
         s.PasteLatestShortcut = FixShortcut(s.PasteLatestShortcut, nameof(s.PasteLatestShortcut), fixes);
         s.ShowHistoryShortcut = FixShortcut(s.ShowHistoryShortcut, nameof(s.ShowHistoryShortcut), fixes);
+        s.ConvertClipboardShortcut = FixShortcut(s.ConvertClipboardShortcut, nameof(s.ConvertClipboardShortcut), fixes);
 
         // ショートカット方式なのにキーが無い場合は無効にする。
         if (s.PasteLatestTrigger == TriggerMode.Shortcut && s.PasteLatestShortcut.Length == 0)
@@ -36,6 +43,11 @@ public static class SettingsNormalizer
         {
             fixes.Add("ShowHistoryTrigger=Shortcut（キー未設定） → Disabled");
             s.ShowHistoryTrigger = TriggerMode.Disabled;
+        }
+        if (s.ConvertClipboardTrigger == TriggerMode.Shortcut && s.ConvertClipboardShortcut.Length == 0)
+        {
+            fixes.Add("ConvertClipboardTrigger=Shortcut（キー未設定） → Disabled");
+            s.ConvertClipboardTrigger = TriggerMode.Disabled;
         }
 
         if (!Enum.IsDefined(s.DoubleTapKey))

@@ -28,6 +28,7 @@ public sealed class HookSupervisor : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly Action<HookNotice, int> _notify;
     private readonly HookRecoveryController _controller = new();
+    private readonly TapMonitoringState _monitoring = new();
     private readonly DispatcherTimer _timer;
     private bool _tap;
     private bool _capture;
@@ -65,6 +66,15 @@ public sealed class HookSupervisor : IDisposable
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
     }
 
+    /// <summary>
+    /// 2 回押しの監視が動いているかが変わった（V2.3.0。UI スレッド）。false = 停止中（キーボードのフックの登録に失敗した）。
+    /// 2 回押しを使わない設定では常に true。
+    /// </summary>
+    public event Action<bool>? MonitoringChanged;
+
+    /// <summary>2 回押しの監視が動いている（または使わない）か（V2.3.0）。</summary>
+    public bool MonitoringActive => _monitoring.Active;
+
     /// <summary>ダブルタップを使うか（設定の反映）。使わなくなったら予約済みの再試行・再登録を取り消す。</summary>
     public void SetDoubleTap(bool enabled, DoubleTapKey key)
     {
@@ -72,6 +82,14 @@ public sealed class HookSupervisor : IDisposable
         _tap = enabled;
         _hook.SetDoubleTap(enabled, key);
         _controller.Configure(_tap, _capture);
+        if (_monitoring.Configure(_tap)) OnMonitoringChanged();
+    }
+
+    private void OnMonitoringChanged()
+    {
+        var active = _monitoring.Active;
+        DiagnosticLog.Add(active ? "2回押しの監視: 通常の表示に戻す" : "2回押しの監視: 停止中の表示にする（キーボードのフックの登録に失敗）");
+        MonitoringChanged?.Invoke(active);
     }
 
     /// <summary>ショートカット入力欄の入力中か。</summary>
@@ -90,7 +108,7 @@ public sealed class HookSupervisor : IDisposable
     public string DescribeState()
     {
         var sb = new StringBuilder();
-        sb.Append($"状態 ダブルタップ={(_tap ? "使う" : "使わない")} キーボード登録={(_hook.KeyboardInstalled ? "あり" : "なし")}");
+        sb.Append($"状態 ダブルタップ={(_tap ? "使う" : "使わない")} キーボード登録={(_hook.KeyboardInstalled ? "あり" : "なし")} マウス登録={(_hook.MouseInstalled ? "あり" : "なし")} 表示={(_monitoring.Active ? "通常" : "停止中")}");
         sb.Append($" 受信 キーボード={_hook.KeyboardCallbacks} マウス={_hook.MouseCallbacks} 例外={_hook.CallbackErrors}");
         var stats = _hook.SnapshotStats();
         sb.Append($" キーの内訳 実入力={stats[(int)HookStat.RealKeys]} 合成扱い={stats[(int)HookStat.InjectedKeys]} 2回押し成立={stats[(int)HookStat.Fired]}");
@@ -119,6 +137,7 @@ public sealed class HookSupervisor : IDisposable
                 : $"登録に失敗（{_controller.Failures} 回目）。再試行を予約");
         }
         if (notice != HookNotice.None) _notify(notice, report.KeyboardError);
+        if (_monitoring.OnReport(report)) OnMonitoringChanged();
     }
 
     private void OnTick(object? sender, EventArgs e)
@@ -201,7 +220,7 @@ public sealed class HookSupervisor : IDisposable
     }
 
     private HookSnapshot Snapshot() =>
-        new(_hook.KeyboardInstalled, _hook.LastSeenTick, LastSystemInput(), IsInputObservable());
+        new(_hook.KeyboardInstalled, _hook.LastSeenTick, LastSystemInput(), IsInputObservable(), _hook.MouseInstalled);
 
     private static uint LastSystemInput()
     {

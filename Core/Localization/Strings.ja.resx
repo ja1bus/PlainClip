@@ -110,7 +110,7 @@
     <value>Esc 閉じる</value>
   </data>
   <data name="HistoryHintPaste" xml:space="preserve">
-    <value>Enter 貼り付け ・ Del 削除 ・ Esc 閉じる</value>
+    <value>Enter 貼り付け ・ Ctrl+Enter コピー ・ Del 削除 ・ Esc 閉じる</value>
   </data>
   <data name="HistoryLinesFormat" xml:space="preserve">
     <value>{0}行</value>
@@ -328,7 +328,7 @@ URL: {1}</value>
     <value>× {0} は数字ショートカットと同じです</value>
   </data>
   <data name="SettingsSameAsOtherFormat" xml:space="preserve">
-    <value>× {0} はもう一方の機能と同じです</value>
+    <value>× {0} は他の機能と同じです</value>
   </data>
   <data name="SettingsSaveFailedFormat" xml:space="preserve">
     <value>設定を保存できませんでした: {0}
@@ -422,5 +422,35 @@ URL: {1}</value>
 {0}
 
 {1}</value>
+  </data>
+  <data name="TrayConvertClipboard" xml:space="preserve">
+    <value>クリップボードを書式なしに変換</value>
+  </data>
+  <data name="TrayTooltipStoppedFormat" xml:space="preserve">
+    <value>PlainClip（履歴 {0} 件）・2回押し: 停止中</value>
+  </data>
+  <data name="NoticeConverted" xml:space="preserve">
+    <value>書式なしにしました。</value>
+  </data>
+  <data name="NoticeAlreadyPlain" xml:space="preserve">
+    <value>すでに書式なしのテキストです。</value>
+  </data>
+  <data name="SettingsConvertHeading" xml:space="preserve">
+    <value>クリップボードを書式なしに変換</value>
+  </data>
+  <data name="SettingsConvertNote" xml:space="preserve">
+    <value>クリップボードのテキストの書式を外します（貼り付けはしません）。管理者として実行中のアプリなど、PlainClip が貼り付けできない画面で使い、その後ご自身で Ctrl+V などで貼り付けます。</value>
+  </data>
+  <data name="SettingsConvertDisabled" xml:space="preserve">
+    <value>無効（タスクトレイのメニューから実行）</value>
+  </data>
+  <data name="GuideConvert" xml:space="preserve">
+    <value>クリップボードのテキストの書式を外します（貼り付けはしません）。PlainClip が貼り付けできない画面（管理者として実行中のアプリなど）で使い、その後ご自身で Ctrl+V を押します。</value>
+  </data>
+  <data name="GuideConvertTrayKey" xml:space="preserve">
+    <value>トレイのメニューから</value>
+  </data>
+  <data name="GuideConvertShortcutFormat" xml:space="preserve">
+    <value>{0} またはトレイのメニューから</value>
   </data>
 </root>
